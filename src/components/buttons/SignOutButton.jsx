@@ -1,15 +1,16 @@
 "use client";
 
-import { logout } from "@/lib/actions/auth";
+import { logout } from "@/lib/actions/auth-actions";
+import { Button } from "../ui/button";
 
 export const SignOutButton = () => {
 	return (
-		<button
+		<Button
 			onClick={() => {
 				logout();
 			}}
 		>
 			Sign Out
-		</button>
+		</Button>
 	);
 };

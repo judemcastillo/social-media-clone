@@ -16,12 +16,12 @@ export default async function middleware(request) {
 		pathname.startsWith(route)
 	);
 	if (isProtectedRoute && !session?.user) {
-		return NextResponse.redirect(new URL("/api/auth/signin", request.url));
+		return NextResponse.redirect(new URL("/", request.url));
 	}
 
 	return NextResponse.next();
 }
 
 export const config = {
-	matcher: ["/home/:path*"],
+	matcher: ["/home/:path*", "/"],
 };
