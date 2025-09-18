@@ -49,33 +49,44 @@ export async function fetchFeed({ limit = 10, cursor = null } = {}) {
 }
 
 // toggle like for the current user
-export async function toggleLike(postId) {
-	const session = await auth();
-	if (!session?.user?.id) return { ok: false };
-
-	const existing = await prisma.like.findUnique({
-		where: { postId_userId: { postId, userId: session.user.id } },
-	});
-
-	if (existing) {
-		await prisma.like.delete({ where: { id: existing.id } });
-	} else {
-		await prisma.like.create({ data: { postId, userId: session.user.id } });
-	}
-
-	// return new counts
-	const counts = await prisma.post.findUnique({
-		where: { id: postId },
-		select: { _count: { select: { likes: true, comments: true } } },
-	});
-	return { ok: true, counts: counts?._count ?? { likes: 0, comments: 0 } };
-}
-
-// delete post (owner or ADMIN)
-export async function deletePost(postId) {
+export async function toggleLike(_prev, formData) {
 	const session = await auth();
 	if (!session?.user?.id) return { ok: false, error: "Unauthorized" };
 
+	const postId = formData.get("postId");
+	if (!postId) return { ok: false, error: "Missing postId" };
+	const userId = session.user.id;
+
+	const where = { postId_userId: { postId, userId } };
+
+	try {
+		const existing = await prisma.like.findUnique({ where });
+		if (existing) {
+			await prisma.like.delete({ where });
+			return { ok: true, liked: false };
+		} else {
+			await prisma.like.create({ data: { userId: session.user.id, postId } });
+			return { ok: true, liked: true };
+		}
+	} catch (e) {
+		console.error(e);
+		return { ok: false, error: "Failed to toggle like" };
+	} finally {
+		revalidatePath("/home"); // helps any server-rendered bits
+	}
+}
+
+// delete post (owner or ADMIN)
+export async function deletePostAction(prevState, formData) {
+	const session = await auth();
+	if (!session?.user?.id) {
+		return { ok: false, error: "Unauthorized" };
+	}
+
+	const postId = formData.get("postId");
+	if (!postId) return { ok: false, error: "Missing post id" };
+
+	// owner or ADMIN
 	const post = await prisma.post.findUnique({
 		where: { id: postId },
 		select: { authorId: true },
@@ -87,6 +98,70 @@ export async function deletePost(postId) {
 	if (!isOwner && !isAdmin) return { ok: false, error: "Forbidden" };
 
 	await prisma.post.delete({ where: { id: postId } });
-	revalidatePath("/home");
+	revalidatePath("/home"); // refresh any server-rendered feeds
+
 	return { ok: true };
+}
+
+// ADD COMMENT
+export async function addComment(prev, formData) {
+	const session = await auth();
+	if (!session?.user) return { ok: false, error: "Unauthorized" };
+
+	const postId = formData.get("postId");
+	const content = (formData.get("content") || "").toString().trim();
+
+	if (!postId || !content) return { ok: false, error: "Missing fields" };
+
+	try {
+		const comment = await prisma.comment.create({
+			data: {
+				postId,
+				authorId: session.user.id,
+				content,
+			},
+			select: {
+				id: true,
+				content: true,
+				createdAt: true,
+				author: { select: { id: true, name: true, email: true, image: true } },
+				postId: true,
+			},
+		});
+		return { ok: true, comment };
+	} catch (e) {
+		console.error(e);
+		return { ok: false, error: "Failed to comment" };
+	} finally {
+		revalidatePath("/home");
+	}
+}
+
+// DELETE COMMENT (owner or admin)
+export async function deleteComment(prev, formData) {
+	const session = await auth();
+	if (!session?.user) return { ok: false, error: "Unauthorized" };
+
+	const id = formData.get("commentId");
+	if (!id) return { ok: false, error: "Missing commentId" };
+
+	const comment = await prisma.comment.findUnique({
+		where: { id },
+		select: { authorId: true },
+	});
+	if (!comment) return { ok: false, error: "Not found" };
+
+	const isOwner = comment.authorId === session.user.id;
+	const isAdmin = session.user.role === "ADMIN";
+	if (!isOwner && !isAdmin) return { ok: false, error: "Forbidden" };
+
+	try {
+		await prisma.comment.delete({ where: { id } });
+		return { ok: true };
+	} catch (e) {
+		console.error(e);
+		return { ok: false, error: "Delete failed" };
+	} finally {
+		revalidatePath("/home");
+	}
 }

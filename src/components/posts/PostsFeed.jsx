@@ -1,46 +1,129 @@
-import { fetchPosts } from "@/lib/helpers/fetch";
+"use client";
+
 import { Card } from "../ui/card";
 import Image from "next/image";
-import { ScrollArea } from "@radix-ui/react-scroll-area";
+import PostMenu from "./PostMenu";
+import { useState } from "react";
+import Comments from "./Comments";
+import { MessageCircle, Share2, ThumbsUp } from "lucide-react";
+import LikeButton from "./LikeButton";
 
-export default async function PostsFeed() {
-	const { posts, nextCursor } = await fetchPosts();
-	if (!posts) return <>No Yaps to show</>;
+export default function PostsFeed({
+	session,
+	posts = [],
+	nextCursor,
+	loadMore,
+	loading,
+	onDeleted,
+}) {
+	const isAdmin = session?.user?.role === "ADMIN";
+	const [showComments, setShowComments] = useState(false);
+	function handleComments(e) {
+		e.preventDefault();
+		if (showComments) {
+			return setShowComments(false);
+		} else return setShowComments(true);
+	}
+	const [openCommentsId, setOpenCommentsId] = useState(null);
+
+	if (!posts.length) return <p className="opacity-70">Loading</p>;
+
 	return (
-		<div className=" w-full space-y-3 max-w-[700px] flex flex-col items-center">
+		<div className="w-full max-w-[700px] space-y-3 flex flex-col items-center">
 			{posts.map((p) => (
-				<Card className="shadow-lg flex flex-col p-5 w-full gap-4">
-					<div className="flex items-center gap-2 flex-row">
-						{p.author.image ? (
-							<Image
-								src={p.author.image}
-								alt={p.author.name || p.author.email}
-								width={30}
-								height={30}
-								className="rounded-full"
-							/>
-						) : (
-							<div
-								className="size-8 rounded-full bg-zinc-300"
-								alt={p.author.name || p.author.email}
-							/>
+				<Card
+					className="shadow-lg flex flex-col p-5 w-full gap-2 pb-1"
+					key={p.id}
+				>
+					<div className="flex justify-between items-center">
+						<div className="flex items-center gap-3">
+							{p.author.image ? (
+								<Image
+									src={p.author.image}
+									alt={p.author.name || p.author.email}
+									width={30}
+									height={30}
+									className="rounded-full"
+								/>
+							) : (
+								<div className="size-8 rounded-full bg-zinc-300" />
+							)}
+							<div className="flex flex-col">
+								{p.author.name || p.author.email}
+								<span className="opacity-60 text-xs">
+									{new Date(p.createdAt).toLocaleString()}
+								</span>
+							</div>
+						</div>
+						{(p.author.id === session?.user?.id || isAdmin) && (
+							<PostMenu postId={p.id} onDeleted={onDeleted} />
 						)}
-						<div className="flex flex-col items-start justify-center">
-							{p.author.name || p.author.email}
-							<span className="opacity-60 text-xs ">
-								{new Date(p.createdAt).toLocaleString()}
-							</span>
+					</div>
+
+					<div className="whitespace-pre-wrap text-sm mt-1">{p.content}</div>
+					<div className="flex flex-row justify-between">
+						<div className="text-sm text-gray-500 ">
+							{p._count.likes > 0 && (
+								<span className="hover:underline cursor-pointer flex flex-row items-center gap-1">
+									<ThumbsUp className="size-5 fill-white rounded-full bg-sky-400 p-1 text-white" />
+									{p._count.likes}
+								</span>
+							)}
+						</div>
+
+						<div className="text-sm text-gray-500">
+							{p._count.comments > 0 && (
+								<span
+									onClick={() =>
+										setOpenCommentsId((prev) => (prev === p.id ? null : p.id))
+									}
+									className="hover:underline cursor-pointer"
+								>
+									{p._count.comments}{" "}
+									{p._count.comments === 1 ? "comment" : "comments"}
+								</span>
+							)}
 						</div>
 					</div>
-					<div className="whitespace-pre-wrap text-sm mt-1">{p.content}</div>
-					<hr />
-					<div className="flex flex-row justify-between text-sm px-8">
-						<button>Like</button>
-						<button>Comment</button>
-						<button>Share</button>
+
+					<div className="grid grid-cols-3 text-sm border-t-2  py-1 ">
+						<div>
+							<LikeButton post={p} />
+						</div>
+						<button
+							onClick={() =>
+								setOpenCommentsId((prev) => (prev === p.id ? null : p.id))
+							}
+							className="flex flex-row items-center justify-center gap-2 hover:underline cursor-pointer hover:bg-gray-100 p-2 rounded"
+						>
+							<MessageCircle className="size-4" />
+							<span>Comment</span>
+						</button>
+						<button className="flex flex-row items-center justify-center gap-2 hover:underline cursor-pointer hover:bg-gray-100 p-2 rounded">
+							<Share2 className="size-4" />
+							<span>Share</span>
+						</button>
 					</div>
+
+					{openCommentsId === p.id && (
+						<Comments postId={p.id} session={session} />
+					)}
 				</Card>
 			))}
+
+			<div className="pt-2">
+				{nextCursor ? (
+					<button
+						onClick={loadMore}
+						disabled={loading}
+						className="px-4 py-2 rounded border"
+					>
+						{loading ? "Loading…" : "Load more"}
+					</button>
+				) : (
+					<span className="opacity-60 text-sm">No more posts</span>
+				)}
+			</div>
 		</div>
 	);
 }
