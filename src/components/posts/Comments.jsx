@@ -1,11 +1,16 @@
 // src/components/posts/Comments.jsx
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import {
+	useActionState,
+	useEffect,
+	useRef,
+	useState,
+	useTransition,
+} from "react";
 import { addComment, deleteComment } from "@/lib/actions/posts-actions";
 import Image from "next/image";
 import { fetchComments } from "@/lib/helpers/fetch";
-import { ScrollArea } from "../ui/scroll-area";
 
 export default function Comments({ postId, session }) {
 	const [items, setItems] = useState([]); // you can lazy-load from /api/comments?postId=...
@@ -14,6 +19,7 @@ export default function Comments({ postId, session }) {
 	});
 	const [nextCursor, setNextCursor] = useState(null);
 	const formRef = useRef(null);
+	const [loadingMore, startTransition] = useTransition();
 
 	useEffect(() => {
 		if (state.ok && state.comment) {
@@ -25,7 +31,7 @@ export default function Comments({ postId, session }) {
 	useEffect(() => {
 		let ignore = false;
 		(async () => {
-			const { items, nextCursor } = await fetchComments({ postId, limit: 20 });
+			const { items, nextCursor } = await fetchComments({ postId, limit: 10 });
 			if (!ignore) {
 				setItems(items);
 				setNextCursor(nextCursor);
@@ -47,11 +53,26 @@ export default function Comments({ postId, session }) {
 			// (you can refetch here instead)
 		}
 	}
-
+	async function loadMore() {
+		if (!nextCursor) return;
+		startTransition(async () => {
+			const { items: more, nextCursor: nc } = await fetchComments({
+				postId,
+				limit: 10,
+				cursor: nextCursor,
+			});
+			setItems((prev) => {
+				const seen = new Set(prev.map((c) => c.id));
+				const uniques = more.filter((c) => !seen.has(c.id));
+				// We’re loading OLDER items, so append at the END:
+				return [...prev, ...uniques];
+			});
+			setNextCursor(nc);
+		});
+	}
 	return (
 		<div className="flex flex-col gap-2 border-t-2 pb-2 pt-3">
-			{/* Comments list */}
-			<ul className="space-y-3 overflow-y-auto ">
+			<ul className="space-y-3 overflow-y-auto max-h-[200px] ">
 				{items.map((c) => (
 					<li key={c.id} className="flex gap-2 items-start w-fit px-2">
 						{c.author?.image ? (
@@ -90,6 +111,16 @@ export default function Comments({ postId, session }) {
 						</div>
 					</li>
 				))}
+				{/* Comments list */}
+				{nextCursor && (
+					<button
+						onClick={loadMore}
+						disabled={loadingMore}
+						className="self-start text-xs px-2 py-2  hover:bg-gray-50 hover:underline"
+					>
+						{loadingMore ? "Loading…" : "View more comments"}
+					</button>
+				)}
 			</ul>
 			{/* Add comment form */}
 			<form

@@ -17,13 +17,7 @@ export default function PostsFeed({
 	onDeleted,
 }) {
 	const isAdmin = session?.user?.role === "ADMIN";
-	const [showComments, setShowComments] = useState(false);
-	function handleComments(e) {
-		e.preventDefault();
-		if (showComments) {
-			return setShowComments(false);
-		} else return setShowComments(true);
-	}
+
 	const [openCommentsId, setOpenCommentsId] = useState(null);
 
 	if (!posts.length) return <p className="opacity-70">Loading</p>;

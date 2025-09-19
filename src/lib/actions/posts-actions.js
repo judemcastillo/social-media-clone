@@ -5,6 +5,10 @@ import { auth } from "@/auth";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 
+const updateSchema = z.object({
+	postId: z.string().min(1),
+	content: z.string().min(1).max(5000),
+});
 const createSchema = z.object({ content: z.string().min(1).max(5000) });
 
 export async function createPost(prev, formData) {
@@ -164,4 +168,49 @@ export async function deleteComment(prev, formData) {
 	} finally {
 		revalidatePath("/home");
 	}
+}
+
+export async function updatePostAction(prev, formData) {
+	const session = await auth();
+
+	if (!session?.user?.id) {
+		return { ok: false, error: "Unauthorized" };
+	}
+
+	const parsed = updateSchema.safeParse(Object.fromEntries(formData));
+	if (!parsed.success) {
+		return { ok: false, error: "Say something first." };
+	}
+
+	const post = await prisma.post.findUnique({
+		where: { id: parsed.data.postId },
+		select: { authorId: true },
+	});
+
+	if (!post) {
+		return { ok: false, error: "Not found" };
+	}
+
+	const isOwner = post.authorId === session.user.id;
+	const isAdmin = session.user.role === "ADMIN";
+
+	if (!isOwner && !isAdmin) {
+		return { ok: false, error: "Forbidden" };
+	}
+
+	const updated = await prisma.post.update({
+		where: { id: parsed.data.postId },
+		data: { content: parsed.data.content.trim() },
+		select: {
+			id: true,
+			content: true,
+			createdAt: true,
+			author: { select: { id: true, name: true, email: true, image: true } },
+			_count: { select: { likes: true, comments: true } },
+		},
+	});
+
+	revalidatePath("/home");
+
+	return { ok: true, post: updated };
 }

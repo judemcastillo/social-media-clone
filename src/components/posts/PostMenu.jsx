@@ -10,6 +10,7 @@ import {
 import { EllipsisVerticalIcon } from "lucide-react";
 import DeletePostButton from "./DeletePostButton";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function PostMenu({ postId, onDeleted }) {
 	const [open, setOpen] = useState(false);
@@ -20,9 +21,14 @@ export default function PostMenu({ postId, onDeleted }) {
 				<EllipsisVerticalIcon className="size-5" />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="mr-3">
-				<DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-					Edit
-				</DropdownMenuItem>
+				<Link href={`/post/${postId}/edit`} className="cursor-pointer">
+					<DropdownMenuItem
+						onSelect={(e) => e.preventDefault()}
+						className="cursor-pointer"
+					>
+						Edit
+					</DropdownMenuItem>
+				</Link>
 
 				<DeletePostButton
 					postId={postId}

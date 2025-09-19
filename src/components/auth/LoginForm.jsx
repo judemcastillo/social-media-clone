@@ -22,43 +22,41 @@ export default function LoginForm() {
 		initialState
 	);
 	return (
-		<div>
-			<Card>
-				<CardHeader>
-					<CardTitle>Log in</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<form action={formAction} className="space-y-4">
-						{state?.errors?._form?.length ? (
-							<div className="mb-3 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-								{state.errors._form[0]}
-							</div>
+		<Card className="h-90 w-70 flex flex-col justify-between shadow-lg">
+			<CardHeader>
+				<CardTitle>Log in</CardTitle>
+			</CardHeader>
+			<CardContent className="flex-2 h-full ">
+				<form action={formAction} className="flex flex-col gap-4 h-full">
+					{state?.errors?._form?.length ? (
+						<div className="mb-3 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+							{state.errors._form[0]}
+						</div>
+					) : null}
+					<div>
+						<Input type="email" placeholder="Email" name="email" required />
+						{state?.errors?.email?.length ? (
+							<p className="text-red-500 text-sm">{state.errors.email[0]}</p>
 						) : null}
-						<div>
-							<Input type="email" placeholder="Email" name="email" required />
-							{state?.errors?.email?.length ? (
-								<p className="text-red-500 text-sm mt-1">
-									{state.errors.email[0]}
-								</p>
-							) : null}
-						</div>
-						<div>
-							<Input
-								type="password"
-								placeholder="Password"
-								name="password"
-								required
-							/>
-							{state?.errors?.password?.length ? (
-								<p className="text-red-500 text-sm mt-1">
-									{state.errors.password[0]}
-								</p>
-							) : null}
-						</div>
-						<SubmitButton />
-					</form>
-				</CardContent>
-			</Card>
-		</div>
+					</div>
+					<div>
+						<Input
+							type="password"
+							placeholder="Password"
+							name="password"
+							required
+						/>
+						{state?.errors?.password?.length ? (
+							<p className="text-red-500 text-sm mt-1">
+								{state.errors.password[0]}
+							</p>
+						) : null}
+					</div>
+					<div></div>
+
+					<SubmitButton className="pt-6" />
+				</form>
+			</CardContent>
+		</Card>
 	);
 }

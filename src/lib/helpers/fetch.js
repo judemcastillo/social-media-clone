@@ -27,3 +27,14 @@ export async function fetchComments({ postId, limit = 20, cursor = null }) {
 	if (!res.ok) throw new Error(`Failed to load comments (${res.status})`);
 	return res.json(); // { items, nextCursor }
 }
+export async function fetchOnePost(postId) {
+	const res = await fetch(`/api/posts/${postId}`, {
+		method: "GET",
+		cache: "no-store",
+	});
+	if (!res.ok) {
+		throw new Error(`Failed to load posts (${res.status})`);
+	}
+
+	return res.json();
+}
