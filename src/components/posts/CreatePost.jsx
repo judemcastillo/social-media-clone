@@ -7,6 +7,7 @@ import { Button } from "../ui/button";
 import { useFormStatus } from "react-dom";
 import Image from "next/image";
 import { Send } from "lucide-react";
+import { Avatar } from "../Avatar";
 
 function SubmitButton() {
 	const { pending } = useFormStatus();
@@ -46,17 +47,7 @@ export default function PostForm({ session, onCreated }) {
 		<Card className="w-full p-5 shadow-lg max-w-[700px] pb-3">
 			<CardHeader className="p-0">
 				<CardTitle className="p-0 flex flex-row justify-start items-center gap-3">
-					{session?.user?.image ? (
-						<Image
-							src={session.user.image}
-							alt="Profile Picture"
-							width={30}
-							height={30}
-							className="rounded-full"
-						/>
-					) : (
-						<div className="w-[30px] h-[30px] rounded-full bg-zinc-200" />
-					)}
+					<Avatar src={session?.user?.image} alt="Profile Picture" size={45} />
 					<div className="flex flex-col text-md gap-1">
 						<span>{session?.user?.name}</span>
 						<span className="text-[12px] font-extralight">

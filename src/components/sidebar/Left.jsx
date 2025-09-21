@@ -4,24 +4,14 @@ import { auth } from "@/auth";
 import { SignOutButton } from "@/components/buttons/SignOutButton";
 import Image from "next/image";
 import { Card } from "../ui/card";
+import { Avatar } from "../Avatar";
 
 export default async function LeftSideBar() {
 	const session = await auth();
 	if (session?.user) {
 		return (
-			<Card className=" m-6 p-4 shadow-2xl flex flex-col justify-center items-center">
-				{session?.user?.image ? (
-					<Image
-						src={session.user.image}
-						alt="Profile Picture"
-						width={50}
-						height={50}
-					/>
-				) : (
-					<div className="w-[100px] h-[100px] rounded-full bg-blue-300" />
-				)}
-
-				<p className="text-2xl">{session.user.name || session.user.email}</p>
+			<Card className=" m-6 p-4 shadow-lg flex flex-col justify-center items-center">
+				<Avatar src={session.user.image} alt={session.user.name}  size={80}/>
 
 				<SignOutButton />
 			</Card>

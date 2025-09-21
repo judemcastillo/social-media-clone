@@ -11,6 +11,7 @@ import {
 import { addComment, deleteComment } from "@/lib/actions/posts-actions";
 import Image from "next/image";
 import { fetchComments } from "@/lib/helpers/fetch";
+import { Avatar } from "../Avatar";
 
 export default function Comments({ postId, session }) {
 	const [items, setItems] = useState([]); // you can lazy-load from /api/comments?postId=...
@@ -75,17 +76,7 @@ export default function Comments({ postId, session }) {
 			<ul className="space-y-3 overflow-y-auto max-h-[200px] ">
 				{items.map((c) => (
 					<li key={c.id} className="flex gap-2 items-start w-fit px-2">
-						{c.author?.image ? (
-							<Image
-								src={c.author.image}
-								alt="avatar"
-								width={24}
-								height={24}
-								className="rounded-full pt-2"
-							/>
-						) : (
-							<div className="pt-2 size-8 rounded-full bg-zinc-300" />
-						)}
+						<Avatar src={c.author?.image} alt="avatar" size={30} className="mt-1"/>
 						<div className="flex-1 ">
 							<div className="bg-gray-100 rounded-md p-2 ">
 								<div className="text-sm">

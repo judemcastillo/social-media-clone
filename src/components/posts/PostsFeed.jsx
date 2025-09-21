@@ -7,6 +7,7 @@ import { useState } from "react";
 import Comments from "./Comments";
 import { MessageCircle, Share2, ThumbsUp } from "lucide-react";
 import LikeButton from "./LikeButton";
+import { Avatar } from "../Avatar";
 
 export default function PostsFeed({
 	session,
@@ -31,17 +32,7 @@ export default function PostsFeed({
 				>
 					<div className="flex justify-between items-center">
 						<div className="flex items-center gap-3">
-							{p.author.image ? (
-								<Image
-									src={p.author.image}
-									alt={p.author.name || p.author.email}
-									width={30}
-									height={30}
-									className="rounded-full"
-								/>
-							) : (
-								<div className="size-8 rounded-full bg-zinc-300" />
-							)}
+							<Avatar src={p.author.image} alt={p.author.name || p.author.email} size={35} />
 							<div className="flex flex-col">
 								{p.author.name || p.author.email}
 								<span className="opacity-60 text-xs">
