@@ -22,7 +22,7 @@ export default function RegisterForm() {
 	const [state, formAction, isPending] = useActionState(register, initialState);
 
 	return (
-		<Card className="h-90 w-70 flex flex-col shadow-lg">
+		<Card className="h-100 w-70 flex flex-col shadow-lg">
 			<CardHeader>
 				<CardTitle>Register</CardTitle>
 			</CardHeader>

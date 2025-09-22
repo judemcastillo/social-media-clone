@@ -7,6 +7,8 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
+import { randomUUID } from "node:crypto";
+import { dicebearAvatar } from "../avatar";
 
 const loginSchema = z.object({
 	email: z.string().email(),
@@ -88,4 +90,41 @@ export async function loginWithGitHub() {
 
 export async function logout() {
 	await signOut({ redirectTo: "/" });
+}
+
+export async function signInAsGuestAction() {
+	// Create a disposable guest account
+	const email = `guest+${randomUUID()}@guest.local`;
+	const password = randomUUID(); // random secret just for this account
+	const passwordHash = await bcrypt.hash(password, 10);
+
+	// Create user first to get id, then set avatar from id
+	const user = await prisma.user.create({
+		data: {
+			email,
+			name: `Guest ${Math.floor(1000 + Math.random() * 9000)}`,
+			role: "GUEST",
+			image: "", // temporary; event will also set it, but we set explicitly below too
+		},
+	});
+
+	await prisma.credential.create({
+		data: { userId: user.id, passwordHash },
+	});
+
+	// Ensure avatar exists even if the event is delayed
+	await prisma.user.update({
+		where: { id: user.id },
+		data: { image: dicebearAvatar(user.id) },
+	});
+
+	// Log in this user using the credentials provider
+	// NextAuth v5: signIn in a server action can redirect
+	await signIn("credentials", {
+		email,
+		password,
+		redirectTo: "/home",
+	});
+
+	return { ok: true }; // (won't be reached if redirected)
 }

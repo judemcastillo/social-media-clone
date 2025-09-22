@@ -5,6 +5,8 @@ import { Input } from "../ui/input";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { loginWithCredentials } from "@/lib/actions/auth-actions";
+import GuestSignInButton from "../buttons/GuestSignInButton";
+import { GithubSignInButton } from "../buttons/GithubSignInButton";
 
 function SubmitButton() {
 	const { pending } = useFormStatus;
@@ -22,12 +24,12 @@ export default function LoginForm() {
 		initialState
 	);
 	return (
-		<Card className="h-90 w-70 flex flex-col justify-between shadow-lg">
-			<CardHeader>
+		<Card className="h-100 w-70 flex flex-col justify-start shadow-lg items-center">
+			<CardHeader className="text-left w-full">
 				<CardTitle>Log in</CardTitle>
 			</CardHeader>
-			<CardContent className="flex-2 h-full ">
-				<form action={formAction} className="flex flex-col gap-4 h-full">
+			<CardContent className="h-full flex flex-col justify-center items-center gap-2 w-65 flex-3">
+				<form action={formAction} className="flex flex-col gap-4  w-full">
 					{state?.errors?._form?.length ? (
 						<div className="mb-3 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
 							{state.errors._form[0]}
@@ -52,10 +54,12 @@ export default function LoginForm() {
 							</p>
 						) : null}
 					</div>
-					<div></div>
 
 					<SubmitButton className="pt-6" />
 				</form>
+				<span>or</span>
+				<GuestSignInButton />
+				<GithubSignInButton />
 			</CardContent>
 		</Card>
 	);

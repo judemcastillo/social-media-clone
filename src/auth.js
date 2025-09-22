@@ -1,10 +1,11 @@
 // src/auth.js
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
+import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import prisma from "@/lib/prisma";
-import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
+import { dicebearAvatar } from "@/lib/avatar";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
 	adapter: PrismaAdapter(prisma),
@@ -21,60 +22,62 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 				password: { label: "Password", type: "password" },
 			},
 			async authorize(creds) {
-				if (creds === null) return null;
-				try {
-					const email = creds?.email.toLowerCase();
-					const password = creds?.password || "";
-					if (!email || !password) {
-						throw new Error("Please input username and password");
-					}
-					const user = await prisma.user.findUnique({
-						where: { email },
-						include: { Credential: true },
-					});
-					if (!user || !user.Credential) {
-						throw new Error("User not Found");
-					} else {
-						const isValid = await bcrypt.compare(
-							password,
-							user.Credential.passwordHash
-						);
-						if (!isValid) {
-							throw new Error("Invalid username or password");
-						} else {
-							return {
-								id: user.id,
-								name: user.name,
-								email: user.email,
-								image: user.image,
-								role: user.role,
-								bio: user.bio,
-								skills: user.skills,
-								coverImage: user.coverImageUrl,
-							};
-						}
-					}
-				} catch (err) {
-					return null;
-				}
+				if (!creds?.email || !creds?.password) return null;
+				const email = creds.email.toLowerCase();
+				const user = await prisma.user.findUnique({
+					where: { email },
+					include: { Credential: true },
+				});
+				if (!user?.Credential) return null;
+				const ok = await bcrypt.compare(
+					creds.password,
+					user.Credential.passwordHash
+				);
+				if (!ok) return null;
+				return {
+					id: user.id,
+					name: user.name,
+					email: user.email,
+					image: user.image,
+					role: user.role,
+					bio: user.bio,
+					skills: user.skills,
+					coverImage: user.coverImageUrl,
+				};
 			},
 		}),
 	],
 
 	callbacks: {
 		async jwt({ token, user }) {
-			// when user logs in, persist their role to the token
 			if (user?.role) token.role = user.role;
 			if (user?.id) token.sub = user.id;
 			return token;
 		},
 		async session({ session, token }) {
-			// expose role + id on session.user
 			if (session?.user) {
 				session.user.id = token.sub;
 				session.user.role = token.role || "USER";
 			}
 			return session;
+		},
+	},
+
+	/** NEW: set a random avatar for any newly created user */
+	events: {
+		async createUser({ user }) {
+			try {
+				if (!user?.id) return;
+				// Set avatar only if it's missing
+				if (!user.image) {
+					await prisma.user.update({
+						where: { id: user.id },
+						data: { image: dicebearAvatar(user.id) },
+					});
+				}
+			} catch (e) {
+				console.error("createUser avatar event error", e);
+			}
 		},
 	},
 });

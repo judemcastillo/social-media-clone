@@ -5,33 +5,92 @@ import { auth } from "@/auth";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { randomUUID } from "node:crypto";
+
 const updateSchema = z.object({
 	postId: z.string().min(1),
 	content: z.string().min(1).max(5000),
 });
 const createSchema = z.object({ content: z.string().min(1).max(5000) });
 
+const BUCKET = process.env.SUPABASE_BUCKET || "posts";
+const MAX_MB = 5;
+
 export async function createPost(prev, formData) {
-	const session = await auth();
-	if (!session?.user?.id) return { ok: false, error: "Unauthorized" };
+	try {
+		const session = await auth();
+		if (!session?.user?.id) return { ok: false, error: "Unauthorized" };
 
-	const parsed = createSchema.safeParse(Object.fromEntries(formData));
-	if (!parsed.success) return { ok: false, error: "Yap something first." };
+		// Parse text
+		const parsed = createSchema.safeParse({ content: formData.get("content") });
+		if (!parsed.success) return { ok: false, error: "Yap something first." };
+		const content = parsed.data.content || "";
 
-	const post = await prisma.post.create({
-		data: { authorId: session.user.id, content: parsed.data.content.trim() },
-		select: {
-			id: true,
-			content: true,
-			createdAt: true,
-			author: { select: { id: true, name: true, email: true, image: true } },
-			_count: { select: { likes: true, comments: true } },
-		},
-	});
+		// Read file (name="image")
+		const file = formData.get("image");
+		const hasFile =
+			file && typeof file === "object" && "size" in file && file.size > 0;
 
-	// if your feed uses fetch/cache, you can revalidate
-	revalidatePath("/home");
-	return { ok: true, post };
+		// Require at least text or image
+		if (!content && !hasFile) {
+			return { ok: false, error: "Write something or attach a photo." };
+		}
+
+		// Optional image upload
+		let imageUrl = null;
+		if (hasFile) {
+			if (!file.type?.startsWith("image/")) {
+				return { ok: false, error: "Only image files are allowed." };
+			}
+			const maxBytes = MAX_MB * 1024 * 1024;
+			if (file.size > maxBytes) {
+				return { ok: false, error: `Image too large (max ${MAX_MB}MB).` };
+			}
+
+			const ext = (file.name?.split(".").pop() || "jpg")
+				.toLowerCase()
+				.replace(/[^a-z0-9]/g, "");
+			const now = new Date();
+			const path = [
+				session.user.id,
+				now.getUTCFullYear(),
+				String(now.getUTCMonth() + 1).padStart(2, "0"),
+				`${randomUUID()}.${ext}`,
+			].join("/");
+
+			const buffer = Buffer.from(await file.arrayBuffer());
+			const { error: uploadErr } = await supabaseAdmin.storage
+				.from(BUCKET)
+				.upload(path, buffer, { contentType: file.type, upsert: false });
+
+			if (uploadErr) {
+				console.error("Supabase upload error:", uploadErr);
+				return { ok: false, error: "Upload failed. Try again." };
+			}
+
+			const { data } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(path);
+			imageUrl = data?.publicUrl ?? null;
+		}
+
+		const post = await prisma.post.create({
+			data: { authorId: session.user.id, content, imageUrl },
+			select: {
+				id: true,
+				content: true,
+				imageUrl: true,
+				createdAt: true,
+				author: { select: { id: true, name: true, email: true, image: true } },
+				_count: { select: { likes: true, comments: true } },
+			},
+		});
+
+		revalidatePath("/home");
+		return { ok: true, post };
+	} catch (e) {
+		console.error("createPost error:", e);
+		return { ok: false, error: "Server error" };
+	}
 }
 
 export async function fetchFeed({ limit = 10, cursor = null } = {}) {

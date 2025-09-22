@@ -12,6 +12,7 @@ const nextConfig = {
 			{ protocol: "https", hostname: "api.dicebear.com" },
 			{ protocol: "https", hostname: "www.gravatar.com" },
 			{ protocol: "https", hostname: "secure.gravatar.com" },
+			{ protocol: "https", hostname: "**.supabase.co" }, // for Supabase Storage buckets
 		],
 	},
 };

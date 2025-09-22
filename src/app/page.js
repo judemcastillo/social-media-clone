@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
-import { SignIn } from "@/components/buttons/SignInButton";
+import { SignIn } from "@/components/buttons/GithubSignInButton";
 import { SignOutButton } from "@/components/buttons/SignOutButton";
 import LoginForm from "@/components/auth/LoginForm";
 import RegisterForm from "@/components/auth/RegisterForm";

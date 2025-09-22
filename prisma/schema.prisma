@@ -16,6 +16,7 @@ datasource db {
 enum Role {
   USER
   ADMIN
+  GUEST
 }
 
 model User {
@@ -37,9 +38,9 @@ model User {
   Authenticator Authenticator[]
 
   // future relations:
-  // posts Post[]
-  // followers Follow[] @relation("followers")
-  // following Follow[] @relation("following")
+
+  followers  Follow[]    @relation("followers") // users who follow THIS user
+  following  Follow[]    @relation("following") // users THIS user follows
   Credential Credential?
   Post       Post[]
   Comment    Comment[]
@@ -144,4 +145,14 @@ model Like {
   @@unique([postId, userId]) // one like per user per post
 }
 
-// model Follow { … }
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("following", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("followers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId]) // one row per edge
+  @@index([followingId, followerId]) // quick lookups
+}

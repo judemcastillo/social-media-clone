@@ -1,77 +1,155 @@
+// components/CreatePost.jsx
 "use client";
 
 import { createPost } from "@/lib/actions/posts-actions";
-import { useActionState, useRef, useEffect } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Card, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { useFormStatus } from "react-dom";
 import Image from "next/image";
-import { Send } from "lucide-react";
+import { Send, Image as ImageIcon } from "lucide-react";
 import { Avatar } from "../Avatar";
+import EmojiDropdown from "../EmojiDropdown"; // <-- new
 
 function SubmitButton() {
 	const { pending } = useFormStatus();
 	return (
 		<Button type="submit" className="pt-2" disabled={pending} variant="outline">
-			{pending ? (
-				<div className="flex flex-row items-center gap-2">
-					Yapping...
-					<Send />
-				</div>
-			) : (
-				<div className="flex flex-row items-center gap-2">
-					Yap
-					<Send />
-				</div>
-			)}
+			<div className="flex items-center gap-2">
+				{pending ? "Yapping..." : "Yap"} <Send />
+			</div>
 		</Button>
 	);
 }
 
 export default function PostForm({ session, onCreated }) {
-	const initialstate = { ok: false, error: "", post: null };
-	const [state, formAction, isPending] = useActionState(
-		createPost,
-		initialstate
-	);
+	const initialState = { ok: false, error: "", post: null };
+	const [state, formAction] = useActionState(createPost, initialState);
+
 	const formRef = useRef(null);
+	const fileInputRef = useRef(null);
+	const textareaRef = useRef(null);
+
+	const [content, setContent] = useState("");
+	const [preview, setPreview] = useState(null);
 
 	useEffect(() => {
 		if (state.ok && state.post) {
-			onCreated?.(state.post); // 👈 notify parent
+			onCreated?.(state.post);
 			formRef.current?.reset();
+			setContent("");
+			setPreview(null);
 		}
 	}, [state, onCreated]);
+
+	function insertAtCaret(char) {
+		const el = textareaRef.current;
+		if (!el) return setContent((c) => c + char);
+		const start = el.selectionStart ?? content.length;
+		const end = el.selectionEnd ?? content.length;
+		const next = content.slice(0, start) + char + content.slice(end);
+		setContent(next);
+		queueMicrotask(() => {
+			el.focus();
+			el.selectionStart = el.selectionEnd = start + char.length;
+		});
+	}
+
+	function onFileChange(e) {
+		const file = e.target.files?.[0];
+		if (!file) return setPreview(null);
+		if (!file.type.startsWith("image/"))
+			return (e.target.value = ""), alert("Only images.");
+		if (file.size > 5 * 1024 * 1024)
+			return (e.target.value = ""), alert("Max 5MB.");
+		setPreview(URL.createObjectURL(file));
+	}
+
+	function clearImage() {
+		setPreview(null);
+		if (fileInputRef.current) fileInputRef.current.value = "";
+	}
 
 	return (
 		<Card className="w-full p-5 shadow-lg max-w-[700px] pb-3">
 			<CardHeader className="p-0">
-				<CardTitle className="p-0 flex flex-row justify-start items-center gap-3">
+				<CardTitle className="p-0 flex items-center gap-3">
 					<Avatar src={session?.user?.image} alt="Profile Picture" size={45} />
 					<div className="flex flex-col text-md gap-1">
 						<span>{session?.user?.name}</span>
 						<span className="text-[12px] font-extralight">
-							{session?.user?.email}
+							Public
 						</span>
 					</div>
 				</CardTitle>
 			</CardHeader>
-			<form action={formAction} ref={formRef}>
-				<div className="flex flex-row items-center ">
+
+			<form
+				ref={formRef}
+				action={formAction}
+				encType="multipart/form-data"
+				className="space-y-2"
+			>
+				<div className="flex items-start">
 					<textarea
+						ref={textareaRef}
 						name="content"
 						rows={2}
 						placeholder="What do you want to yap?"
-						className="w-full bg-transparent border-none rounded  text-sm  focus:outline-none focus:ring-0 focus:border-transparent "
-						required
+						className="w-full bg-transparent border-none rounded text-sm focus:outline-none focus:ring-0 focus:border-transparent"
+						required={!preview}
+						value={content}
+						onChange={(e) => setContent(e.target.value)}
 					/>
 				</div>
+				<hr />
+
+				{/* toolbar */}
+				<div className="flex items-center gap-2">
+					<label className="inline-flex items-center gap-2 cursor-pointer rounded-md border px-2 py-1 text-sm">
+						<ImageIcon className="size-4" />
+						<span>Photo</span>
+						<input
+							ref={fileInputRef}
+							type="file"
+							name="image"
+							accept="image/*"
+							className="hidden"
+							onChange={onFileChange}
+						/>
+					</label>
+					<EmojiDropdown onPick={insertAtCaret} /> {/* ← popover picker */}
+					<div className="ml-auto">
+						<SubmitButton />
+					</div>
+				</div>
+
+				{/* preview */}
+				{preview && (
+					<div className="mt-2">
+						<div className="relative h-64 w-full overflow-hidden rounded-xl border">
+							<Image
+								src={preview}
+								alt="preview"
+								fill
+								className="object-cover"
+								unoptimized
+							/>
+						</div>
+						<div className="mt-2">
+							<Button
+								type="button"
+								variant="outline"
+								className="text-sm"
+								onClick={clearImage}
+							>
+								Remove photo
+							</Button>
+						</div>
+					</div>
+				)}
 
 				{state?.error && <p className="text-sm text-red-500">{state.error}</p>}
-				<hr />
-				<div className="flex justify-end pt-1">
-					<SubmitButton />
-				</div>
 			</form>
 		</Card>
 	);

@@ -1,13 +1,14 @@
 "use client";
 
 import { Card } from "../ui/card";
-import Image from "next/image";
 import PostMenu from "./PostMenu";
 import { useState } from "react";
 import Comments from "./Comments";
 import { MessageCircle, Share2, ThumbsUp } from "lucide-react";
 import LikeButton from "./LikeButton";
 import { Avatar } from "../Avatar";
+import Image from "next/image";
+import FollowButton from "../FollowButton";
 
 export default function PostsFeed({
 	session,
@@ -32,7 +33,11 @@ export default function PostsFeed({
 				>
 					<div className="flex justify-between items-center">
 						<div className="flex items-center gap-3">
-							<Avatar src={p.author.image} alt={p.author.name || p.author.email} size={35} />
+							<Avatar
+								src={p.author.image}
+								alt={p.author.name || p.author.email}
+								size={35}
+							/>
 							<div className="flex flex-col">
 								{p.author.name || p.author.email}
 								<span className="opacity-60 text-xs">
@@ -43,7 +48,24 @@ export default function PostsFeed({
 						{(p.author.id === session?.user?.id || isAdmin) && (
 							<PostMenu postId={p.id} onDeleted={onDeleted} />
 						)}
+						<FollowButton
+							viewerId={session?.user?.id}
+							targetId={p.author.id}
+							initialIsFollowing={!!p.author.isFollowedByMe}
+							initialFollowsYou={!!p.author.followsMe}
+						/>
 					</div>
+					{p.imageUrl && (
+						<div className="relative w-full h-64 mt-2">
+							<Image
+								src={p.imageUrl}
+								alt="Post image"
+								fill
+								className="object-contain rounded-lg"
+								loading="lazy"
+							/>
+						</div>
+					)}
 
 					<div className="whitespace-pre-wrap text-sm mt-1">{p.content}</div>
 					<div className="flex flex-row justify-between">
