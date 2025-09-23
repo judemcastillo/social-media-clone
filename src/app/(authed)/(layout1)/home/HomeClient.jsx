@@ -5,7 +5,7 @@ import PostForm from "@/components/posts/CreatePost";
 import PostsFeed from "@/components/posts/PostsFeed";
 import { fetchPosts } from "@/lib/helpers/fetch";
 
-export default function HomeClient({ session, pageSize = 10 }) {
+export default function HomeClient({ session, user, pageSize = 10 }) {
 	const [posts, setPosts] = useState([]);
 	const [nextCursor, setNextCursor] = useState(null);
 	const [isPending, startTransition] = useTransition();
@@ -50,7 +50,7 @@ export default function HomeClient({ session, pageSize = 10 }) {
 
 	return (
 		<main className="flex h-[93vh] flex-col items-center justify-start pt-5 gap-7 w-full overflow-y-auto ">
-			<PostForm session={session} onCreated={handleCreated} />
+			<PostForm session={session} onCreated={handleCreated} user={user}/>
 			<div className="overflow-y-auto w-full flex flex-col items-center pb-10 scrollbar-none">
 				<PostsFeed
 					session={session}

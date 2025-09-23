@@ -22,7 +22,7 @@ function SubmitButton() {
 	);
 }
 
-export default function PostForm({ session, onCreated }) {
+export default function PostForm({ session, onCreated, user }) {
 	const initialState = { ok: false, error: "", post: null };
 	const [state, formAction] = useActionState(createPost, initialState);
 
@@ -74,12 +74,10 @@ export default function PostForm({ session, onCreated }) {
 		<Card className="w-full p-5 shadow-lg max-w-[700px] pb-3">
 			<CardHeader className="p-0">
 				<CardTitle className="p-0 flex items-center gap-3">
-					<Avatar src={session?.user?.image} alt="Profile Picture" size={45} />
+					<Avatar src={user?.image} alt="Profile Picture" size={45} />
 					<div className="flex flex-col text-md gap-1">
-						<span>{session?.user?.name}</span>
-						<span className="text-[12px] font-extralight">
-							Public
-						</span>
+						<span>{user?.name}</span>
+						<span className="text-[12px] font-extralight">Public</span>
 					</div>
 				</CardTitle>
 			</CardHeader>

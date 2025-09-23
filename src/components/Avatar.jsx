@@ -21,7 +21,8 @@ export function Avatar({ src, alt, size = 64, className = "" }) {
 			alt={alt || "avatar"}
 			width={size}
 			height={size}
-			className={`rounded-full border-sky-300 border-2 p-[4px] ${className}`}
+			className={`rounded-full border-sky-300 border-2 p-[4px] aspect-square object-cover size-${size/4} ${className}`}
+			unoptimized
 		/>
 	);
 }

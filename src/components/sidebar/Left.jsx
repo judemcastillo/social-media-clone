@@ -57,45 +57,37 @@ export default async function SidebarProfile() {
 	const cover = user?.coverImageUrl;
 
 	return (
-		<aside className="w-full p-5">
-			<div className="relative rounded-2xl bg-white shadow-lg border overflow-hidden  max-w-[350px]">
-				{/* cover */}
-				<div className="relative h-28 w-full bg-gradient-to-r from-sky-200 via-sky-200 to-gray-100">
-					{/* optional real cover image */}
-					{cover && (
-						<Image
-							src={cover}
-							alt="Cover"
-							fill
-							className="object-cover"
-							sizes="(max-width: 768px) 100vw, 320px"
-						/>
-					)}
-
-					{/* decorative arc behind avatar */}
-					<div className="absolute -bottom-12 left-1/2 -translate-x-1/2">
-						<div className="relative h-28 w-28">
-							<div className="absolute inset-0 rounded-full bg-white  ">
-								<Avatar src={avatar} size={90} className="size-24 m-2 " />
-							</div>
-						
-						</div>
+		<aside className="w-full p-5 max-w-100 overflow-y-auto max-h-[93vh] space-y-8">
+			<div className="relative rounded-2xl bg-white shadow-lg border overflow-hidden  pb-5">
+				<div className="h-40 w-full grid-cols-3 grid grid-rows-3">
+					{/* cover */}
+					<div className="  w-full bg-gradient-to-r from-sky-200 via-sky-200 to-gray-100 col-span-3 row-span-2 row-start-1 relative col-start-1">
+						{/* optional real cover image */}
+						{cover && (
+							<Image
+								src={cover}
+								alt="Cover"
+								fill
+								className="object-cover"
+								sizes="(max-width: 768px) 100vw, 320px"
+							/>
+						)}
+					</div>
+					<div className="row-start-2 col-start-2 z-10 col-span-1 row-end-4 row-span-2 bg-white rounded-full m-auto border-5 border-white">
+						<Avatar src={avatar} size={90} />
 					</div>
 				</div>
 
-				<div className="px-6 pt-5">
-					<div className="mx-auto h-24 w-24 -mt-14 rounded-full ring-4 ring-white overflow-hidden shadow"></div>
-
+				<div className="px-6 space-y-4 ">
 					{/* name / handle */}
 					<div className=" text-center">
-						<div className="text-base font-semibold text-gray-900">
+						<div className="text-lg font-semibold text-gray-900">
 							{user?.name || handle}
 						</div>
-						
 					</div>
 
 					{/* stats */}
-					<div className="mt-4 flex items-center justify-center gap-6 text-center">
+					<div className="flex items-center justify-center gap-6 text-center">
 						<div>
 							<div className="text-lg font-semibold text-gray-900">
 								{followersCount}
@@ -110,13 +102,15 @@ export default async function SidebarProfile() {
 							<div className="text-xs text-gray-500">Following</div>
 						</div>
 					</div>
-
+					<h1 className="font-bold text-md pt-2">Bio:</h1>
 					{/* bio */}
-					{user?.bio && (
-						<div className="mt-4 rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-700">
+					{user?.bio ?(
+						<div className="mt-1 rounded-xl bg-gray-100 px-4 py-3 text-sm text-gray-700">
 							{user.bio}
 						</div>
-					)}
+					):(<div className="mt-1 rounded-xl bg-gray-100 px-4 py-3 text-sm text-gray-700 text-center">
+						No bio yet
+					</div>)}
 
 					{/* profile button */}
 					<div className="mt-4 flex justify-center">
@@ -127,30 +121,30 @@ export default async function SidebarProfile() {
 							My Profile
 						</Link>
 					</div>
-
-					{/* skills */}
-					{Array.isArray(user?.skills) && user.skills.length > 0 && (
-						<div className="mt-6">
-							<div className="mb-2 text-sm font-medium text-gray-900">
-								Skills
-							</div>
-							<div className="flex flex-wrap gap-2">
-								{user.skills.map((s, i) => (
-									<span
-										key={`${s}-${i}`}
-										className="rounded-full border bg-white px-3 py-1 text-xs text-gray-700 shadow-sm"
-									>
-										{s}
-									</span>
-								))}
-							</div>
-						</div>
-					)}
-
-					{/* spacer */}
-					<div className="h-4" />
 				</div>
 			</div>
+			<div className="p-4 border-t-2 mt-4 border-black/10">
+				<h1 className="font-bold">Skills:</h1>
+				{/* skills */}
+				{Array.isArray(user?.skills) && user.skills.length > 0 ? (
+					<div className="mt-6 ">
+						<div className="mb-2 text-sm font-medium text-gray-900">Skills</div>
+						<div className="flex flex-wrap gap-2">
+							{user.skills.map((s, i) => (
+								<span
+									key={`${s}-${i}`}
+									className="rounded-full border bg-white px-3 py-1 text-xs text-gray-700 shadow-sm"
+								>
+									{s}
+								</span>
+							))}
+						</div>
+					</div>
+				) : (
+					<div className="mt-4">No skills yet</div>
+				)}
+			</div>
+			<div className="border-t-2 mt-4 border-black/10 p-4 "><h1 className="font-bold">Communities:</h1></div>
 		</aside>
 	);
 }
