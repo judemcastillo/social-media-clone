@@ -3,6 +3,8 @@ import Image from "next/image";
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import FollowButton from "@/components/FollowButton";
+import { Avatar } from "@/components/Avatar";
+import { Card } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,7 @@ export default async function DiscoverPage() {
 			image: true,
 			role: true,
 			bio: true,
+			coverImageUrl: true,
 			_count: { select: { followers: true, following: true } },
 		},
 	});
@@ -51,40 +54,51 @@ export default async function DiscoverPage() {
 	}
 
 	return (
-		<main className="mx-auto max-w-5xl p-4">
-			<h1 className="text-xl font-semibold mb-4">Discover people</h1>
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+		<main className="mx-auto max-w-[700px] py-4 max-h-[93vh] overflow-y-auto scrollbar-none w-full">
+			<h1 className="text-xl font-semibold mb-4">Discover Yappers</h1>
+			<div className="grid sm:grid-cols-3 sm:gap-4 grid-cols-2 gap-1">
 				{users.map((u) => {
-					const handle = u.email?.split("@")[0] ?? "user";
 					const canFollow =
 						viewerId && viewerRole !== "GUEST" && u.role !== "GUEST";
 					const isFollowing = followSet.has(u.id);
 					const followsMe = backSet.has(u.id);
 
 					return (
-						<div
-							key={u.id}
-							className="rounded-2xl border bg-white p-4 flex flex-col gap-3"
-						>
-							<div className="flex items-center gap-3">
-								<Image
-									src={
-										u.image ||
-										`https://api.dicebear.com/7.x/bottts/png?seed=${u.id}&size=256`
-									}
-									alt={u.name || handle}
-									width={48}
-									height={48}
-									className="rounded-full object-cover"
-								/>
+						<Card key={u.id} className=" p-0 flex flex-col gap-3 items-center h-70">
+							<div className=" w-full grid-cols-3 grid grid-rows-3  h-30 ">
+								<div className="w-full bg-gradient-to-r from-sky-200 via-sky-200 to-gray-100 col-span-3 row-span-2 row-start-1 relative col-start-1 rounded-t-lg">
+									{u.coverImageUrl && (
+										<Image
+											src={u.coverImageUrl}
+											alt="Cover"
+											fill
+											className="object-cover"
+											sizes="(max-width: 768px) 100vw, 320px"
+										/>
+									)}
+								</div>
+								<div className="row-start-2 col-start-1 z-10 col-span-3 row-end-4 row-span-2 bg-card rounded-full m-auto border-5 border-card overflow-visible">
+									<Avatar src={u.image} size={60} />
+								</div>
+							</div>
+							<div className="px-4 pb-4  flex flex-col gap-1 items-center">
 								<div className="flex-1">
 									<Link
 										href={`/user/${u.id}`}
 										className="font-medium hover:underline"
 									>
-										{u.name || handle}
+										{u.name || "user"}
 									</Link>
-									<div className="text-xs text-gray-500">@{handle}</div>
+								</div>
+
+								{u.bio && (
+									<p className="text-sm text-gray-700 line-clamp-3">{u.bio}</p>
+								)}
+								<div className="text-xs text-gray-500">
+									<span className="font-semibold">{u._count.followers}</span>{" "}
+									followers ·{" "}
+									<span className="font-semibold">{u._count.following}</span>{" "}
+									following
 								</div>
 								{canFollow && (
 									<FollowButton
@@ -96,16 +110,7 @@ export default async function DiscoverPage() {
 									/>
 								)}
 							</div>
-							{u.bio && (
-								<p className="text-sm text-gray-700 line-clamp-3">{u.bio}</p>
-							)}
-							<div className="text-xs text-gray-500">
-								<span className="font-semibold">{u._count.followers}</span>{" "}
-								followers ·{" "}
-								<span className="font-semibold">{u._count.following}</span>{" "}
-								following
-							</div>
-						</div>
+						</Card>
 					);
 				})}
 			</div>

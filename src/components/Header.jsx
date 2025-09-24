@@ -1,27 +1,27 @@
 "use server";
 
 import { auth } from "@/auth";
-import { SignOutButton } from "./buttons/SignOutButton";
-import { Compass, Home, Mail, MessageCircle } from "lucide-react";
-import Link from "next/link";
+import { ModeToggle } from "./ModeToggle";
+import { Card } from "./ui/card";
+import MenuDropDown from "./MenuDropDown";
+import HeaderNav from "./HeaderNav";
 
 export default async function Header() {
 	const session = await auth();
+
 	return (
-		<div className="flex flex-row justify-between p-5 items-center font-[50px] h-[7vh]">
-			<div>Logo</div>
-			<div className="flex flex-row gap-5 text-slate-600">
-				<Link href="/home" className="px-4">
-					<Home />
-				</Link>
-				<button className="px-4">
-					<Mail />
-				</button>
-				<button className="px-4">
-					<Compass />
-				</button>
+		<Card className="flex flex-row justify-between items-center h-[7vh] w-[100vw] rounded-none p-5">
+			<div className="font-semibold">Logo</div>
+
+			{/* active-aware nav */}
+			<div className="text-muted-foreground">
+				<HeaderNav />
 			</div>
-			<div>Profile {session?.user && <SignOutButton />}</div>
-		</div>
+
+			<div className="flex flex-row items-center gap-4">
+				<ModeToggle />
+				{session?.user && <MenuDropDown session={session} />}
+			</div>
+		</Card>
 	);
 }

@@ -9,6 +9,8 @@ import LikeButton from "./LikeButton";
 import { Avatar } from "../Avatar";
 import Image from "next/image";
 import FollowButton from "../FollowButton";
+import { Separator } from "@radix-ui/react-dropdown-menu";
+import { Button } from "../ui/button";
 
 export default function PostsFeed({
 	session,
@@ -93,23 +95,27 @@ export default function PostsFeed({
 						</div>
 					</div>
 
-					<div className="grid grid-cols-3 text-sm border-t-2  py-1 ">
+					<div className="grid grid-cols-3 text-sm   border-t-1 border-muted-foreground py-1 ">
 						<div>
 							<LikeButton post={p} />
 						</div>
-						<button
+						<Button
 							onClick={() =>
 								setOpenCommentsId((prev) => (prev === p.id ? null : p.id))
 							}
-							className="flex flex-row items-center justify-center gap-2 hover:underline cursor-pointer hover:bg-gray-100 p-2 rounded"
+							className="flex flex-row items-center justify-center gap-2 hover:underline cursor-pointer  p-2 rounded"
+							variant="ghost"
 						>
 							<MessageCircle className="size-4" />
 							<span>Comment</span>
-						</button>
-						<button className="flex flex-row items-center justify-center gap-2 hover:underline cursor-pointer hover:bg-gray-100 p-2 rounded">
+						</Button>
+						<Button
+							className="flex flex-row items-center justify-center gap-2 hover:underline cursor-pointer  p-2 rounded"
+							variant="ghost"
+						>
 							<Share2 className="size-4" />
 							<span>Share</span>
-						</button>
+						</Button>
 					</div>
 
 					{openCommentsId === p.id && (

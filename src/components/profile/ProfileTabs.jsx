@@ -15,7 +15,7 @@ function UsersList({ items = [], session }) {
 	return (
 		<ul className="space-y-2">
 			{items.map((u) => {
-				const handle = u.email?.split("@")[0] ?? "user";
+				
 				const canFollow =
 					session?.user?.id &&
 					session?.user?.role !== "GUEST" &&
@@ -25,7 +25,7 @@ function UsersList({ items = [], session }) {
 				return (
 					<Card
 						key={u.id}
-						className="flex items-center justify-between shadow-lg border bg-white p-3 flex-row"
+						className="flex items-center justify-between shadow-lg  p-3 flex-row"
 					>
 						<div className="flex items-center gap-3">
 							<Avatar src={u.image} size={35} />
@@ -63,25 +63,25 @@ export default function ProfileTabs({
 	const [tab, setTab] = useState("yaps");
 
 	return (
-		<div className=" w-full max-w-[698px] flex flex-col gap-4 mx-auto h-full">
+		<div className=" w-full max-w-[700px] flex flex-col gap-4 mx-auto h-full">
 			{/* Tab headers */}
-			<div className=" z-10   border-b bg-white px-4 py-0 rounded-b-md shadow-lg">
+			<Card className=" z-10   border-b bg-card px-4 py-0 rounded-t-none shadow-lg">
 				<div className="flex gap-4">
 					{["yaps", "followers", "following"].map((t) => (
 						<button
 							key={t}
 							onClick={() => setTab(t)}
-							className={`border-b-2 px-5 py-2 text-sm ${
+							className={`border-b-2 px-5 py-2 text-sm  cursor-pointer ${
 								tab === t
-									? "border-sky-600 font-medium text-sky-600"
-									: "border-transparent text-gray-500 hover:text-black"
+									? "border-primary font-medium text-primary"
+									: "border-transparent text-gray-500 hover:text-foreground-muted hover:border-gray-300"
 							}`}
 						>
 							{t[0].toUpperCase() + t.slice(1)}
 						</button>
 					))}
 				</div>
-			</div>
+			</Card>
 
 			{/* Tab content */}
 			{tab === "yaps" && (

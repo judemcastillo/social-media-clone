@@ -48,7 +48,8 @@ export default function FollowButton({
 			<input type="hidden" name="userId" value={targetId} />
 			<Button
 				type="submit"
-				className={` hover:bg-gray-500`}
+				variant={followState ? "secondary" : "default"}
+				className="cursor-pointer"
 				aria-pressed={followState}
 				disabled={pending}
 			>

@@ -14,7 +14,7 @@ import EmojiDropdown from "../EmojiDropdown"; // <-- new
 function SubmitButton() {
 	const { pending } = useFormStatus();
 	return (
-		<Button type="submit" className="pt-2" disabled={pending} variant="outline">
+		<Button type="submit" className="pt-2 border-none shadow-lg" disabled={pending} variant="outline">
 			<div className="flex items-center gap-2">
 				{pending ? "Yapping..." : "Yap"} <Send />
 			</div>

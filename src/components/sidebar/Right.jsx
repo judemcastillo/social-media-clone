@@ -15,7 +15,7 @@ export default function RightSideBar() {
 				</CardHeader>
 				<CardContent>
 					<CardTitle>Welcome to YapSpace!</CardTitle>
-					<CardDescription className="mt-2 text-sm">
+					<CardDescription className="mt-2 text-sm overflow-hidden max-h-20">
 						Lorem ipsum dolor sit amet consectetur, adipisicing elit. Unde sunt
 						ad deserunt quibusdam enim facilis itaque facere est fugiat
 						voluptatibus libero omnis adipisci, eaque necessitatibus debitis

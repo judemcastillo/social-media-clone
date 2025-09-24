@@ -7,6 +7,9 @@ import FollowButton from "@/components/FollowButton";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/Avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { MessageSquareMore } from "lucide-react";
+
 
 export const dynamic = "force-dynamic";
 
@@ -150,7 +153,7 @@ export default async function UserProfilePage({ params: p }) {
 		<main className=" max-h-[93vh] overflow-y-auto  mx-auto flex flex-col items-center w-full scrollbar-none">
 			<div className="max-w-[700px] w-full px-5 md:px-0 ">
 				{/* cover */}
-				<Card className="w-full  rounded-t-xl border bg-white pt-0 mt-8 shadow-lg flex flex-col pb-0 rounded-b-none">
+				<Card className="w-full  rounded-t-xl border bpt-0 mt-8 shadow-lg flex flex-col pb-0 rounded-b-none pt-0">
 					<div className="grid grid-cols-4 grid-rows-3 w-full h-55">
 						<div className="relative col-span-4 w-full row-span-2 row-start-1 col-start-1 bg-gray-100 overflow-hidden px-0 rounded-t-xl bg-gradient-to-r from-sky-200 via-sky-200 to-gray-100">
 							{user.coverImageUrl && (
@@ -162,27 +165,34 @@ export default async function UserProfilePage({ params: p }) {
 								/>
 							)}
 						</div>
-						<div className="row-span-2 col-span-1 m-auto col-start-1 row-start-2 bg-white rounded-full border-3  border-white w-fit z-50 -translate-x-6">
-							<Avatar src={user.image} size={80} />
+						<div className="row-span-2 col-span-1 m-auto col-start-1 row-start-2 bg-card rounded-full border-3  border-card w-fit z-50 -translate-x-4">
+							<Avatar src={user.image} size={100} />
 						</div>
 						<div className="col-start-4 row-start-3 row-span-1 col-span-1 z-60 m-auto">
 							{viewerId === user.id && session?.user?.role !== "GUEST" ? (
-								<Link
-									href={`/user/${user.id}/edit`}
-									className="rounded-md border px-3 py-2 text-sm hover:bg-gray-50"
-								>
-									Edit profile
+								<Link href={`/user/${user.id}/edit`}>
+									<Button variant="secondary" className="text-[13px]">
+										Edit profile
+									</Button>
 								</Link>
 							) : (
 								viewerId &&
 								session?.user?.role !== "GUEST" &&
 								user.role !== "GUEST" && (
-									<FollowButton
-										viewerId={viewerId}
-										targetId={user.id}
-										initialIsFollowing={isFollowedByMe}
-										initialFollowsYou={followsMe}
-									/>
+									<div className="flex items-center gap-3">
+										<Link href={`/messages/${user.id}`}>
+											<Button className="cursor-pointer rounded-full p-1 size-9">
+												<MessageSquareMore />
+											</Button>
+										</Link>
+
+										<FollowButton
+											viewerId={viewerId}
+											targetId={user.id}
+											initialIsFollowing={isFollowedByMe}
+											initialFollowsYou={followsMe}
+										/>
+									</div>
 								)
 							)}
 						</div>
@@ -197,9 +207,9 @@ export default async function UserProfilePage({ params: p }) {
 
 						{/* bio */}
 						{user.bio ? (
-							<div className=" text-sm text-gray-700">{user.bio}</div>
+							<div className=" text-sm text-muted-foreground">{user.bio}</div>
 						) : (
-							<div className=" bg-white  text-sm text-gray-700">No bio yet</div>
+							<div className="   text-sm text-muted-foreground">No bio yet</div>
 						)}
 
 						{/* skills */}
@@ -208,16 +218,12 @@ export default async function UserProfilePage({ params: p }) {
 								<div className="flex flex-wrap gap-2 items-center">
 									<h2 className=" text-sm font-medium">Skills:</h2>
 									{user.skills.map((s, i) => (
-										<Badge variant="outline" key={i}>
-											{s}
-										</Badge>
+										<Badge key={i}>{s}</Badge>
 									))}
 								</div>
 							</section>
 						) : (
-							<div className="bg-white text-sm text-gray-500 px-3">
-								No skills yet
-							</div>
+							<></>
 						)}
 						<div className="mt-2 flex items-center gap-6 text-sm">
 							<div>
