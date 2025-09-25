@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MessageSquareMore } from "lucide-react";
 
-
 export const dynamic = "force-dynamic";
 
 export default async function UserProfilePage({ params: p }) {
@@ -47,10 +46,48 @@ export default async function UserProfilePage({ params: p }) {
 			imageUrl: true,
 			createdAt: true,
 			authorId: true,
-			author: { select: { id: true, name: true, email: true, image: true } },
+			author: {
+				select: {
+					id: true,
+					name: true,
+					email: true,
+					image: true,
+					coverImageUrl: true,
+					bio: true,
+					_count: { select: { followers: true, following: true } },
+					role: true,
+				},
+			},
 			_count: { select: { likes: true, comments: true } },
 		},
 	});
+
+	// --- NEW: compute follow flags (viewer ↔ profile owner) BEFORE building `posts`
+	let isFollowedByMe = false;
+	let followsMe = false;
+	if (
+		viewerId &&
+		viewerId !== id &&
+		viewerRole !== "GUEST" &&
+		user.role !== "GUEST"
+	) {
+		const [a, b] = await Promise.all([
+			prisma.follow.findUnique({
+				where: {
+					followerId_followingId: { followerId: viewerId, followingId: id },
+				},
+				select: { followerId: true },
+			}),
+			prisma.follow.findUnique({
+				where: {
+					followerId_followingId: { followerId: id, followingId: viewerId },
+				},
+				select: { followerId: true },
+			}),
+		]);
+		isFollowedByMe = !!a;
+		followsMe = !!b;
+	}
 
 	// likedByMe map for viewer
 	let likedMap = {};
@@ -61,7 +98,17 @@ export default async function UserProfilePage({ params: p }) {
 		});
 		likedMap = Object.fromEntries(likes.map((l) => [l.postId, true]));
 	}
-	const posts = rows.map((r) => ({ ...r, likedByMe: !!likedMap[r.id] }));
+
+	// --- UPDATED: attach author flags to each post
+	const posts = rows.map((r) => ({
+		...r,
+		likedByMe: !!likedMap[r.id],
+		author: {
+			...r.author,
+			isFollowedByMe,
+			followsMe,
+		},
+	}));
 
 	// followers list (users who follow THIS user)
 	const followerEdges = await prisma.follow.findMany({
@@ -104,14 +151,14 @@ export default async function UserProfilePage({ params: p }) {
 		const isFollowing = new Set(
 			edges.filter((e) => e.followerId === viewerId).map((e) => e.followingId)
 		);
-		const followsMe = new Set(
+		const followsMeSet = new Set(
 			edges.filter((e) => e.followingId === viewerId).map((e) => e.followerId)
 		);
 
 		return list.map((u) => ({
 			...u,
 			isFollowedByMe: isFollowing.has(u.id),
-			followsMe: followsMe.has(u.id),
+			followsMe: followsMeSet.has(u.id),
 		}));
 	}
 
@@ -121,33 +168,6 @@ export default async function UserProfilePage({ params: p }) {
 	]);
 
 	const handle = user.email?.split("@")[0] ?? "user";
-
-	// follow flags for header button
-	let isFollowedByMe = false;
-	let followsMe = false;
-	if (
-		viewerId &&
-		viewerId !== id &&
-		viewerRole !== "GUEST" &&
-		user.role !== "GUEST"
-	) {
-		const [a, b] = await Promise.all([
-			prisma.follow.findUnique({
-				where: {
-					followerId_followingId: { followerId: viewerId, followingId: id },
-				},
-				select: { followerId: true },
-			}),
-			prisma.follow.findUnique({
-				where: {
-					followerId_followingId: { followerId: id, followingId: viewerId },
-				},
-				select: { followerId: true },
-			}),
-		]);
-		isFollowedByMe = !!a;
-		followsMe = !!b;
-	}
 
 	return (
 		<main className=" max-h-[93vh] overflow-y-auto  mx-auto flex flex-col items-center w-full scrollbar-none">
@@ -199,7 +219,7 @@ export default async function UserProfilePage({ params: p }) {
 					</div>
 					<div className="px-8 space-y-3 -translate-y-10 ">
 						{/* header */}
-						<div className="">
+						<div className=" ">
 							<div className=" ">
 								<h1 className="text-xl font-semibold">{user.name || handle}</h1>
 							</div>

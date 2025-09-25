@@ -50,7 +50,7 @@ export default function HomeClient({ session, user, pageSize = 10 }) {
 
 	return (
 		<main className="flex h-[93vh] flex-col items-center justify-start pt-5 gap-7 w-full overflow-y-auto ">
-			<PostForm session={session} onCreated={handleCreated} user={user}/>
+			<PostForm session={session} onCreated={handleCreated} user={user} />
 			<div className="overflow-y-auto w-full flex flex-col items-center pb-10 scrollbar-none">
 				<PostsFeed
 					session={session}

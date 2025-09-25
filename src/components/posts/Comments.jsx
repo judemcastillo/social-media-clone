@@ -16,6 +16,8 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
 import { SendHorizontal, SmilePlus } from "lucide-react";
+import { ScrollArea } from "../ui/scroll-area";
+import EmojiDropdown from "../EmojiDropdown";
 
 export default function Comments({ postId, session }) {
 	const [items, setItems] = useState([]); // you can lazy-load from /api/comments?postId=...
@@ -23,8 +25,10 @@ export default function Comments({ postId, session }) {
 		ok: false,
 	});
 	const [nextCursor, setNextCursor] = useState(null);
+	const [content, setContent] = useState("");
 	const formRef = useRef(null);
 	const [loadingMore, startTransition] = useTransition();
+	const textareaRef = useRef(null);
 
 	useEffect(() => {
 		if (state.ok && state.comment) {
@@ -75,10 +79,23 @@ export default function Comments({ postId, session }) {
 			setNextCursor(nc);
 		});
 	}
+
+	function insertAtCaret(char) {
+		const el = textareaRef.current;
+		if (!el) return setContent((c) => c + char);
+		const start = el.selectionStart ?? content.length;
+		const end = el.selectionEnd ?? content.length;
+		const next = content.slice(0, start) + char + content.slice(end);
+		setContent(next);
+		queueMicrotask(() => {
+			el.focus();
+			el.selectionStart = el.selectionEnd = start + char.length;
+		});
+	}
 	return (
-		<div className="flex flex-col gap-2 pb-2">
-			<Separator className="bg-muted-foreground my-2" />
-			<ul className="space-y-3 overflow-y-auto max-h-[200px] pt-2">
+		<div className="flex flex-col gap-2 pb-2 -translate-y-2.5">
+			<Separator className="bg-muted my-2 dark:bg-gray-500" />
+			<ScrollArea className="space-y-3 max-h-[200px] pt-2">
 				{items.map((c) => (
 					<li key={c.id} className="flex gap-2 items-start w-fit px-2">
 						<Avatar
@@ -123,9 +140,9 @@ export default function Comments({ postId, session }) {
 						{loadingMore ? "Loading…" : "View more comments"}
 					</Button>
 				)}
-			</ul>
+			</ScrollArea>
 			{/* Add comment form */}
-			<Separator className="bg-muted-foreground my-2" />
+			<Separator className="bg-muted my-2 dark:bg-gray-500" />
 			<form
 				ref={formRef}
 				action={(fd) => {
@@ -139,22 +156,19 @@ export default function Comments({ postId, session }) {
 						<Avatar src={session?.user?.image} alt="avatar" size={40} />
 					</div>
 					<div className="flex flex-col w-full border border-muted bg-input rounded-md flex-1">
-						<Input
+						<input
+							ref={textareaRef}
 							name="content"
 							placeholder="Write a comment…"
-							className="flex-1 px-3 py-2  rounded-b-none border-none shadow-none focus:ring-none focus:outline-none"
+							className="flex-1 px-3 py-2  rounded-b-none border-none shadow-none focus:outline-none focus:ring-0 focus:border-transparent"
 							type="text"
+							value={content}
+							onChange={(e) => setContent(e.target.value)}
 							required
 						/>{" "}
-						<Separator className="bg-gray-500 my-1" />
+						<Separator className="bg-muted my-1 dark:bg-gray-500" />
 						<div className="flex justify-between items-center flex-row px-2">
-							<Button
-								className=" cursor-pointer w-8 text-sm rounded-full h-8  p-[2px] m-1 border-muted border-1"
-								disabled={pending}
-								variant="outline"
-							>
-								<SmilePlus className="size-4" />
-							</Button>
+							<EmojiDropdown onPick={insertAtCaret} />
 							<Button
 								className=" cursor-pointer w-8 text-sm rounded-full h-8  p-[2px] m-1 "
 								disabled={pending}

@@ -14,7 +14,12 @@ import EmojiDropdown from "../EmojiDropdown"; // <-- new
 function SubmitButton() {
 	const { pending } = useFormStatus();
 	return (
-		<Button type="submit" className="pt-2 border-none shadow-lg" disabled={pending} variant="outline">
+		<Button
+			type="submit"
+			className="pt-2 border-none shadow-md cursor-pointer"
+			disabled={pending}
+			variant="outline"
+		>
 			<div className="flex items-center gap-2">
 				{pending ? "Yapping..." : "Yap"} <Send />
 			</div>
@@ -82,12 +87,7 @@ export default function PostForm({ session, onCreated, user }) {
 				</CardTitle>
 			</CardHeader>
 
-			<form
-				ref={formRef}
-				action={formAction}
-				encType="multipart/form-data"
-				className="space-y-2"
-			>
+			<form ref={formRef} action={formAction} className="space-y-2">
 				<div className="flex items-start">
 					<textarea
 						ref={textareaRef}
@@ -100,11 +100,10 @@ export default function PostForm({ session, onCreated, user }) {
 						onChange={(e) => setContent(e.target.value)}
 					/>
 				</div>
-				<hr />
 
 				{/* toolbar */}
-				<div className="flex items-center gap-2">
-					<label className="inline-flex items-center gap-2 cursor-pointer rounded-md border px-2 py-1 text-sm">
+				<div className="flex items-center gap-2 border-t-1 pt-3 dark:border-gray-500">
+					<label className="inline-flex items-center gap-2 cursor-pointer rounded-md border px-2 py-1 text-sm hover:bg-primary/5 hover:text-primary">
 						<ImageIcon className="size-4" />
 						<span>Photo</span>
 						<input

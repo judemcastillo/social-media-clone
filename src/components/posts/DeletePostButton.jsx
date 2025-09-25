@@ -15,6 +15,7 @@ import {
 	AlertDialogCancel,
 	AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import { Button } from "../ui/button";
 
 export default function DeletePostButton({ postId, onDeleted, closeMenu }) {
 	const initial = { ok: false, error: "" };
@@ -57,7 +58,9 @@ export default function DeletePostButton({ postId, onDeleted, closeMenu }) {
 				<form ref={formRef} action={formAction}>
 					<input type="hidden" name="postId" value={postId} />
 					<AlertDialogFooter>
-						<AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
+						<AlertDialogCancel disabled={pending} className="cursor-pointer">
+							Cancel
+						</AlertDialogCancel>
 						{/* Confirm submits the server action */}
 						<AlertDialogAction
 							asChild
@@ -67,7 +70,13 @@ export default function DeletePostButton({ postId, onDeleted, closeMenu }) {
 							}}
 							disabled={pending}
 						>
-							<button type="submit">{pending ? "Deleting…" : "Confirm"}</button>
+							<Button
+								type="submit"
+								variant="destructive"
+								className="cursor-pointer"
+							>
+								{pending ? "Deleting…" : "Delete"}
+							</Button>
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</form>

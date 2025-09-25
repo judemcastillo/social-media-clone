@@ -13,7 +13,7 @@ import { logout } from "@/lib/actions/auth-actions";
 export default function MenuDropDown({ session }) {
 	return (
 		<DropdownMenu className="focus:outline-none focus:ring-0 focus:border-transparent">
-			<DropdownMenuTrigger>
+			<DropdownMenuTrigger className="focus:outline-none focus:ring-0 focus:border-transparent cursor-pointer">
 				<Avatar src={session.user.image} size={45} />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>

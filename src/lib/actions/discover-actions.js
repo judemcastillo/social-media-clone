@@ -1,29 +1,23 @@
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "../ui/card";
+"use server";
+
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
-import DiscoverWidget from "../discover/DiscoverWidget";
-export const dynamic = "force-dynamic";
 
 const LIMIT = 12;
 
-export default async function RightSideBar() {
+export async function loadMoreDiscoverAction(prev, formData) {
 	const session = await auth();
 	const viewerId = session?.user?.id ?? null;
-	const viewerRole = session?.user?.role ?? "USER";
+	const cursor = String(formData.get("cursor") || "") || null;
 
 	const rows = await prisma.user.findMany({
 		where: { id: { not: viewerId } },
 		take: LIMIT + 1,
+		...(cursor ? { cursor: { id: cursor } } : {}),
 		orderBy: [
-			{ followers: { _count: "desc" } },
-			{ following: { _count: "desc" } },
-			{ id: "desc" },
+			{ followers: { _count: "desc" } }, // most followers
+			{ following: { _count: "desc" } }, // then following count
+			{ id: "desc" }, // stable tie-break for cursor paging
 		],
 		select: {
 			id: true,
@@ -41,7 +35,7 @@ export default async function RightSideBar() {
 	if (rows.length > LIMIT) nextCursor = rows[rows.length - 1].id;
 	const users = rows.slice(0, LIMIT);
 
-	// follow flags for initial batch
+	// follow flags relative to viewer (batch)
 	let followSet = new Set();
 	let backSet = new Set();
 	if (viewerId && users.length) {
@@ -63,34 +57,11 @@ export default async function RightSideBar() {
 		);
 	}
 
-	const initialUsers = users.map((u) => ({
+	const withFlags = users.map((u) => ({
 		...u,
 		isFollowedByMe: followSet.has(u.id),
 		followsMe: backSet.has(u.id),
 	}));
 
-	return (
-		<div className="h-[93vh] flex flex-col gap-6 justify-start p-6  overflow-y-auto">
-			<Card className="h-75 ">
-				<CardHeader>
-					<CardTitle>Updates</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<CardTitle>Welcome to YapSpace!</CardTitle>
-					<CardDescription className="mt-2 text-sm overflow-hidden max-h-20">
-						Lorem ipsum dolor sit amet consectetur, adipisicing elit. Unde sunt
-						ad deserunt quibusdam enim facilis itaque facere est fugiat
-						voluptatibus libero omnis adipisci, eaque necessitatibus debitis
-						placeat totam vel eligendi.
-					</CardDescription>
-				</CardContent>
-			</Card>
-			<DiscoverWidget
-				initialUsers={initialUsers}
-				initialNextCursor={nextCursor}
-				viewerId={viewerId}
-				viewerRole={viewerRole}
-			/>
-		</div>
-	);
+	return { ok: true, users: withFlags, nextCursor };
 }

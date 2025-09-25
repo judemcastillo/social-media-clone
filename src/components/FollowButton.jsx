@@ -49,7 +49,7 @@ export default function FollowButton({
 			<Button
 				type="submit"
 				variant={followState ? "secondary" : "default"}
-				className="cursor-pointer"
+				className={`cursor-pointer rounded-2xl text-${size} p-3`}
 				aria-pressed={followState}
 				disabled={pending}
 			>

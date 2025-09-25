@@ -30,7 +30,7 @@ export default function LikeButton({ post, onOptimisticToggle = () => {} }) {
 				type="submit"
 				variant="ghost"
 				disabled={pending}
-				className={`flex flex-row items-center justify-center gap-2 p-2 rounded cursor-pointer
+				className={`flex flex-row items-center justify-center gap-2 p-2 r cursor-pointer
           hover:underline  w-full
           ${isLiked ? "text-primary font-medium" : ""}`}
 			>

@@ -17,7 +17,7 @@ export default function PostMenu({ postId, onDeleted }) {
 
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
-			<DropdownMenuTrigger className="size-5 text-gray-600 focus:outline-none">
+			<DropdownMenuTrigger className="size-5 text-gray-600 focus:outline-none cursor-pointer">
 				<EllipsisVerticalIcon className="size-5" />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="mr-3">
@@ -33,6 +33,7 @@ export default function PostMenu({ postId, onDeleted }) {
 				<DeletePostButton
 					postId={postId}
 					onDeleted={onDeleted}
+					className="cursor-pointer"
 					closeMenu={() => setOpen(false)}
 				/>
 			</DropdownMenuContent>

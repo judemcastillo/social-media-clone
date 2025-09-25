@@ -4,6 +4,7 @@ import PostForm from "@/components/posts/CreatePost";
 import PostsFeed from "@/components/posts/PostsFeed";
 import HomeClient from "./HomeClient";
 import prisma from "@/lib/prisma";
+import { fetchPosts, fetchPostsServer } from "@/lib/helpers/fetch";
 
 export default async function Home() {
 	const session = await auth();
