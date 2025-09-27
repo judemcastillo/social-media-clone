@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import prisma from "@/lib/prisma";
@@ -6,6 +8,7 @@ import { Avatar } from "../Avatar";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
+import { useUser } from "../providers/user-context";
 
 // optional: your dicebear helper for fallbacks
 const dicebearAvatar = (seed, size = 256, style = "bottts") =>
@@ -13,9 +16,9 @@ const dicebearAvatar = (seed, size = 256, style = "bottts") =>
 		seed
 	)}&size=${size}`;
 
-export default async function SidebarProfile() {
-	const session = await auth();
-	const userId = session?.user?.id;
+export default function SidebarProfile() {
+	const user = useUser();
+	const userId = user?.id;
 
 	if (!userId) {
 		// not signed in — show a minimal placeholder card
@@ -34,24 +37,9 @@ export default async function SidebarProfile() {
 		);
 	}
 
-	// fetch user + counts (followers/following)
-	const [user, followersCount, followingCount] = await Promise.all([
-		prisma.user.findUnique({
-			where: { id: userId },
-			select: {
-				id: true,
-				name: true,
-				email: true,
-				image: true,
-				bio: true,
-				skills: true, // String[] in your schema
-				coverImageUrl: true, // rename if your field is different
-				role: true,
-			},
-		}),
-		prisma.follow.count({ where: { followingId: userId } }),
-		prisma.follow.count({ where: { followerId: userId } }),
-	]);
+	const followersCount = user._count.followers;
+
+	const followingCount = user._count.following;
 
 	const handle = user?.email ? user.email.split("@")[0] : "user";
 	const profileHref = `/user/${user?.id ?? ""}`;

@@ -38,7 +38,7 @@ export default async function UserProfilePage({ params: p }) {
 	// posts by this user (first page)
 	const rows = await prisma.post.findMany({
 		where: { authorId: id },
-		take: 20,
+		take: 10,
 		orderBy: { createdAt: "desc" },
 		select: {
 			id: true,

@@ -9,22 +9,18 @@ import { fetchPosts, fetchPostsServer } from "@/lib/helpers/fetch";
 export default async function Home() {
 	const session = await auth();
 	const me = session?.user?.id;
-	const user = await prisma.user.findUnique({
-		where: { id: me },
-		select: {
-			id: true,
-			name: true,
-			bio: true,
-			skills: true,
-			image: true,
-			coverImageUrl: true,
-		},
-	});
+	const { posts, nextCursor } = await fetchPostsServer(me);
+	const initialPosts = posts;
+	const initialNextCursor = nextCursor;
 
 	if (session?.user) {
 		return (
 			<>
-				<HomeClient session={session} user={user} />
+				
+				<HomeClient
+					initialPosts={initialPosts}
+					initialNextCursor={initialNextCursor}
+				/>
 			</>
 		);
 	}

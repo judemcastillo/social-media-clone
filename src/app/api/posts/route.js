@@ -7,6 +7,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req) {
 	const session = await auth();
+	if (!session?.user) {
+		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	}
+
 	const viewerId = session?.user?.id ?? null;
 
 	const { searchParams } = new URL(req.url);
@@ -24,7 +28,7 @@ export async function GET(req) {
 			createdAt: true,
 			authorId: true,
 			author: {
- 				select: {
+				select: {
 					id: true,
 					name: true,
 					email: true,

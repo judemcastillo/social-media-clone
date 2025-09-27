@@ -20,7 +20,7 @@ export default async function Header() {
 
 			<div className="flex flex-row items-center gap-4">
 				<ModeToggle />
-				{session?.user && <MenuDropDown session={session} />}
+				{session?.user && <MenuDropDown />}
 			</div>
 		</Card>
 	);

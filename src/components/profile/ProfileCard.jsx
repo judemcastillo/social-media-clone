@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MessageCirclePlusIcon, UserRoundX } from "lucide-react";
 
-export default function ProfileCard({ u, canFollow, viewerId }) {
+export default function ProfileCard({ u, canFollow, viewerId, author }) {
 	return (
 		<>
 			<Card
@@ -58,7 +58,9 @@ export default function ProfileCard({ u, canFollow, viewerId }) {
 						)}
 					</div>
 					<div className="w-full flex justify-center h-12">
-						{canFollow ? (
+						{author ? (
+							<div></div>
+						) : canFollow ? (
 							<div className="flex items-center gap-2 justify-center flex-row w-full ">
 								<Button
 									variant="default"

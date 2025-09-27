@@ -10,6 +10,7 @@ import Image from "next/image";
 import { Send, Image as ImageIcon } from "lucide-react";
 import { Avatar } from "../Avatar";
 import EmojiDropdown from "../EmojiDropdown"; // <-- new
+import { useUser } from "../providers/user-context";
 
 function SubmitButton() {
 	const { pending } = useFormStatus();
@@ -27,9 +28,10 @@ function SubmitButton() {
 	);
 }
 
-export default function PostForm({ session, onCreated, user }) {
+export default function PostForm({ onCreated }) {
 	const initialState = { ok: false, error: "", post: null };
 	const [state, formAction] = useActionState(createPost, initialState);
+	const user = useUser();
 
 	const formRef = useRef(null);
 	const fileInputRef = useRef(null);

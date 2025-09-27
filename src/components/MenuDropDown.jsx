@@ -9,16 +9,18 @@ import {
 	DropdownMenuSeparator,
 } from "./ui/dropdown-menu";
 import { logout } from "@/lib/actions/auth-actions";
+import { useUser } from "./providers/user-context";
 
-export default function MenuDropDown({ session }) {
+export default function MenuDropDown() {
+	const user = useUser();
 	return (
 		<DropdownMenu className="focus:outline-none focus:ring-0 focus:border-transparent">
 			<DropdownMenuTrigger className="focus:outline-none focus:ring-0 focus:border-transparent cursor-pointer">
-				<Avatar src={session.user.image} size={45} />
+				<Avatar src={user.image} size={45} />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
 				<DropdownMenuItem>
-					<Link href={`/user/${session.user.id}`}>Profile</Link>
+					<Link href={`/user/${user.id}`}>Profile</Link>
 				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem onClick={() => logout()}>Sign Out</DropdownMenuItem>

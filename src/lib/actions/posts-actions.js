@@ -80,7 +80,15 @@ export async function createPost(prev, formData) {
 				content: true,
 				imageUrl: true,
 				createdAt: true,
-				author: { select: { id: true, name: true, email: true, image: true } },
+				author: {
+					select: {
+						id: true,
+						name: true,
+						email: true,
+						image: true,
+						_count: { select: { followers: true, following: true } },
+					},
+				},
 				_count: { select: { likes: true, comments: true } },
 			},
 		});

@@ -14,7 +14,7 @@ export async function GET(req, { params: p }) {
 	const rows = await prisma.comment.findMany({
 		where: { postId },
 		take: limit + 1,
-		...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+		...(cursor ? { cursor: { id: cursor } } : {}),
 		orderBy: { id: "desc" }, // stable seek pagination
 		select: {
 			id: true,

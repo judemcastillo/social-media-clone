@@ -2,7 +2,7 @@
 
 import { Card } from "../ui/card";
 import PostMenu from "./PostMenu";
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Comments from "./Comments";
 import { MessageCircle, Share2, ThumbsUp } from "lucide-react";
 import LikeButton from "./LikeButton";
@@ -16,28 +16,51 @@ import {
 	HoverCardTrigger,
 } from "../ui/hover-card";
 import ProfileCard from "../profile/ProfileCard";
+import { useUser } from "../providers/user-context";
 
 export default function PostsFeed({
-	session,
 	posts = [],
 	nextCursor,
 	loadMore,
 	loading,
 	onDeleted,
 }) {
-	const isAdmin = session?.user?.role === "ADMIN";
+	const viewer = useUser();
+	const isAdmin = viewer?.role === "ADMIN";
 
 	const [openCommentsId, setOpenCommentsId] = useState(null);
 
-	if (!posts.length) return <p className="opacity-70">No Yaps</p>;
+	// ✅ keep a local copy so we can do optimistic updates
+	const [items, setItems] = useState(posts);
+	useEffect(() => setItems(posts), [posts]);
+
+	// ✅ optimistic like toggle: flip likedByMe and adjust _count.likes
+	const onOptimisticLike = (postId) => {
+		setItems((prev) =>
+			prev.map((p) => {
+				if (p.id !== postId) return p;
+				const nextLiked = !p.likedByMe;
+				return {
+					...p,
+					likedByMe: nextLiked,
+					_count: {
+						...p._count,
+						likes: Math.max(0, (p._count?.likes ?? 0) + (nextLiked ? 1 : -1)),
+					},
+				};
+			})
+		);
+	};
+
+	if (!items.length) return <p className="opacity-70">No Yaps</p>;
 
 	return (
 		<div className="w-full max-w-[700px] space-y-3 flex flex-col items-center">
-			{posts.map((p) => {
+			{items.map((p) => {
 				const canFollow =
-					session?.user?.id &&
-					session?.user?.role !== "GUEST" &&
-					p.author.role !== "GUEST";
+					viewer?.id && viewer?.role !== "GUEST" && p.author.role !== "GUEST";
+				const author = viewer?.id === p.author.id;
+
 				return (
 					<Card
 						className="shadow-lg flex flex-col p-5 w-full gap-2 pb-1"
@@ -61,7 +84,8 @@ export default function PostsFeed({
 											<ProfileCard
 												u={p.author}
 												canFollow={canFollow}
-												viewerId={session?.user?.id}
+												viewerId={viewer?.id}
+												author={author}
 											/>
 										</HoverCardContent>
 									</HoverCard>
@@ -70,10 +94,11 @@ export default function PostsFeed({
 									</span>
 								</div>
 							</div>
-							{(p.author.id === session?.user?.id || isAdmin) && (
+							{(author || isAdmin) && (
 								<PostMenu postId={p.id} onDeleted={onDeleted} />
 							)}
 						</div>
+
 						{p.imageUrl && (
 							<div className="relative w-full h-64 mt-2">
 								<Image
@@ -87,7 +112,9 @@ export default function PostsFeed({
 						)}
 
 						<div className="whitespace-pre-wrap text-sm mt-1">{p.content}</div>
-						<div className="flex flex-row justify-between">
+					
+
+						{/* <div className="flex flex-row justify-between">
 							<div className="text-sm text-gray-500 ">
 								{p._count.likes > 0 && (
 									<span className="hover:underline cursor-pointer flex flex-row items-center gap-1">
@@ -110,34 +137,16 @@ export default function PostsFeed({
 									</span>
 								)}
 							</div>
-						</div>
+						</div> */}
 
-						<div className="grid grid-cols-3 text-sm  border-t-1 border-muted py-1 dark:border-gray-500">
-							<div>
-								<LikeButton post={p} />
-							</div>
-							<Button
-								onClick={() =>
-									setOpenCommentsId((prev) => (prev === p.id ? null : p.id))
-								}
-								className="flex flex-row items-center justify-center gap-2 hover:underline cursor-pointer  p-2 "
-								variant="ghost"
-							>
-								<MessageCircle className="size-4" />
-								<span>Comment</span>
-							</Button>
-							<Button
-								className="flex flex-row items-center justify-center gap-2 hover:underline cursor-pointer  p-2 "
-								variant="ghost"
-							>
-								<Share2 className="size-4" />
-								<span>Share</span>
-							</Button>
-						</div>
+						{/*  */}
 
-						{openCommentsId === p.id && (
-							<Comments postId={p.id} session={session} />
-						)}
+						<Comments
+							
+							countLikes={p._count.likes}
+							countComments={p._count.comments}
+							post={p}
+						/>
 					</Card>
 				);
 			})}
