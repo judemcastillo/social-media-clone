@@ -1,14 +1,12 @@
 import { auth } from "@/auth";
 import Header from "@/components/Header";
-import LeftSideBar from "@/components/sidebar/Left";
-import RightSideBar from "@/components/sidebar/Right";
-import { fetchOneUser, fetchOneUserServer } from "@/lib/helpers/fetch";
 import { UserProvider } from "@/components/providers/user-context";
+import fetchOneUserAction from "@/lib/actions/discover-actions";
 
 export default async function RootLayout({ children }) {
 	const session = await auth();
 	const me = session?.user?.id;
-	const { user } = await fetchOneUserServer(me);
+	const { user } = await fetchOneUserAction(me);
 
 	return (
 		<UserProvider value={user}>

@@ -40,6 +40,7 @@ export default function Comments({ post, countLikes, countComments }) {
 	const [initialLoading, setInitialLoading] = useState(false);
 
 	const [commentCount, setCommentCount] = useState(Number(countComments));
+	const [likeCount, setLikeCount] = useState(Number(countLikes));
 
 	// Reset when post changes
 	useEffect(() => {
@@ -132,22 +133,32 @@ export default function Comments({ post, countLikes, countComments }) {
 			el.selectionStart = el.selectionEnd = start + char.length;
 		});
 	}
+	function handleLikeCount(liked) {
+		if (liked) {
+			setLikeCount(likeCount + 1);
+		} else {
+			setLikeCount(likeCount - 1);
+		}
+	}
 
 	return (
 		<div className="relative space-y-2">
 			<div className="flex flex-row justify-between">
 				<div className="text-sm text-gray-500 ">
-					{countLikes > 0 && (
+					{likeCount > 0 && (
 						<span className="hover:underline cursor-pointer flex flex-row items-center gap-1">
-							<ThumbsUp className="size-5 fill-white rounded-full bg-sky-400 p-1 text-white" />
-							{countLikes}
+							<ThumbsUp className="size-5 fill-white rounded-full bg-primary p-1 text-white" />
+							{likeCount}
 						</span>
 					)}
 				</div>
 
 				<div className="text-sm text-gray-500">
 					{commentCount > 0 && (
-						<span className="hover:underline cursor-pointer">
+						<span
+							className="hover:underline cursor-pointer"
+							onClick={handleShowComments}
+						>
 							{commentCount} {commentCount === 1 ? "comment" : "comments"}
 						</span>
 					)}
@@ -156,7 +167,7 @@ export default function Comments({ post, countLikes, countComments }) {
 
 			<div className="grid grid-cols-3 text-sm  border-t-1 border-muted py-1 dark:border-gray-500">
 				<div>
-					<LikeButton post={post} onOptimisticToggle={() => {}} />
+					<LikeButton post={post} handleLikeCount={handleLikeCount}/>
 				</div>
 				<Button
 					className="flex flex-row items-center justify-center gap-2 hover:underline cursor-pointer  p-2 "
@@ -244,7 +255,7 @@ export default function Comments({ post, countLikes, countComments }) {
 									ref={textareaRef}
 									name="content"
 									placeholder="Write a comment…"
-									className="flex-1 px-3 py-2  rounded-b-none border-none shadow-none focus:outline-none focus:ring-0 focus:border-transparent text-sm"
+									className="flex-1 px-3 py-2  rounded-b-none border-none shadow-none focus:outline-none focus:ring-0 focus:border-transparent text-[13px]"
 									type="text"
 									value={content}
 									onChange={(e) => setContent(e.target.value)}

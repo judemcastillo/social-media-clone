@@ -107,7 +107,7 @@ export default function SidebarProfile() {
 					</div>
 				</div>
 			</Card>
-			<div className="p-4 border-t-2 mt-4 border-black/10">
+			<div className="p-4 border-t-2 mt-4 border-muted dark:border-gray-500">
 				<h1 className="font-bold">Skills:</h1>
 				{/* skills */}
 				{Array.isArray(user?.skills) && user.skills.length > 0 ? (
@@ -122,7 +122,7 @@ export default function SidebarProfile() {
 					<div className="mt-4">No skills yet</div>
 				)}
 			</div>
-			<div className="border-t-2 mt-4 border-black/10 p-4 ">
+			<div className="border-t-2  border-muted p-4 dark:border-gray-500">
 				<h1 className="font-bold">Communities:</h1>
 			</div>
 		</aside>

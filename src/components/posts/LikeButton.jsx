@@ -6,7 +6,7 @@ import { toggleLike } from "@/lib/actions/posts-actions";
 import { ThumbsUp } from "lucide-react";
 import { Button } from "../ui/button";
 
-export default function LikeButton({ post, onOptimisticToggle = () => {} }) {
+export default function LikeButton({ post, handleLikeCount }) {
 	const [state, formAction, pending] = useActionState(toggleLike, {
 		ok: false,
 	});
@@ -15,6 +15,7 @@ export default function LikeButton({ post, onOptimisticToggle = () => {} }) {
 	useEffect(() => {
 		if (state.ok) {
 			setLiked(state.liked);
+			handleLikeCount(state.liked);
 		}
 	}, [state]);
 
@@ -22,7 +23,6 @@ export default function LikeButton({ post, onOptimisticToggle = () => {} }) {
 		<form
 			action={(fd) => {
 				fd.set("postId", post.id);
-				onOptimisticToggle(post.id); // optimistic update in parent
 				return formAction(fd);
 			}}
 		>

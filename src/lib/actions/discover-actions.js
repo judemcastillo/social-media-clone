@@ -65,3 +65,32 @@ export async function loadMoreDiscoverAction(prev, formData) {
 
 	return { ok: true, users: withFlags, nextCursor };
 }
+
+export default async function fetchOneUserAction(id) {
+	try {
+		if (!id) return { error: "Missing id", status: 400 };
+
+		const user = await prisma.user.findUnique({
+			where: { id },
+			select: {
+				id: true,
+				email: true,
+				name: true,
+				image: true,
+				role: true,
+				createdAt: true,
+				coverImageUrl: true,
+				bio: true,
+				skills: true,
+
+				_count: { select: { followers: true, following: true } },
+			},
+		});
+
+		if (!user) return { error: "Not found", status: 404 };
+		return { user };
+	} catch (e) {
+		console.error(e);
+		return { error: "Server error", status: 500 };
+	}
+}

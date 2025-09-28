@@ -102,21 +102,177 @@ export async function createPost(prev, formData) {
 }
 
 export async function fetchFeed({ limit = 10, cursor = null } = {}) {
+	const session = await auth();
+	if (!session?.user) {
+		return { status: 404, error: "Unauthorized" };
+	}
+
+	const viewerId = session?.user?.id ?? null;
+
 	const rows = await prisma.post.findMany({
 		take: limit + 1,
-		...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-		orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+		...(cursor ? { cursor: { id: cursor } } : {}),
+		orderBy: { id: "desc" },
 		select: {
 			id: true,
 			content: true,
+			imageUrl: true,
 			createdAt: true,
-			author: { select: { id: true, name: true, email: true, image: true } },
+			authorId: true,
+			author: {
+				select: {
+					id: true,
+					name: true,
+					email: true,
+					image: true,
+					bio: true,
+					coverImageUrl: true,
+					role: true,
+					_count: { select: { followers: true, following: true } },
+				},
+			},
 			_count: { select: { likes: true, comments: true } },
 		},
 	});
+
 	let nextCursor = null;
 	if (rows.length > limit) nextCursor = rows.pop().id;
-	return { items: rows, nextCursor };
+
+	// likedByMe (batch)
+	let likedMap = {};
+	if (viewerId && rows.length) {
+		const likes = await prisma.like.findMany({
+			where: { userId: viewerId, postId: { in: rows.map((r) => r.id) } },
+			select: { postId: true },
+		});
+		likedMap = Object.fromEntries(likes.map((l) => [l.postId, true]));
+	}
+
+	// follow flags (batch) for authors
+	let isFollowing = new Set();
+	let followsYou = new Set();
+	if (viewerId && rows.length) {
+		const authorIds = Array.from(
+			new Set(rows.map((r) => r.authorId).filter((id) => id && id !== viewerId))
+		);
+		if (authorIds.length) {
+			const edges = await prisma.follow.findMany({
+				where: {
+					OR: [
+						{ followerId: viewerId, followingId: { in: authorIds } }, // me -> authors
+						{ followerId: { in: authorIds }, followingId: viewerId }, // authors -> me
+					],
+				},
+				select: { followerId: true, followingId: true },
+			});
+			isFollowing = new Set(
+				edges.filter((e) => e.followerId === viewerId).map((e) => e.followingId)
+			);
+			followsYou = new Set(
+				edges.filter((e) => e.followingId === viewerId).map((e) => e.followerId)
+			);
+		}
+	}
+
+	const posts = rows.map((r) => ({
+		...r,
+		likedByMe: !!likedMap[r.id],
+		author: {
+			...r.author,
+			isFollowedByMe: viewerId ? isFollowing.has(r.author.id) : false,
+			followsMe: viewerId ? followsYou.has(r.author.id) : false,
+		},
+	}));
+
+	return { posts, nextCursor };
+}
+
+export async function fetchUserFeed({
+	userId,
+	limit = 10,
+	cursor = null,
+} = {}) {
+	const session = await auth();
+	if (!session?.user) return { ok: false, error: "Unauthorized" };
+	if (!userId) return { ok: false, error: "userId is required" };
+
+	const viewerId = session.user.id;
+	const take = Math.min(Number(limit) || 10, 50);
+
+	// Posts by this author (cursor by id)
+	const rows = await prisma.post.findMany({
+		where: { authorId: userId },
+		take: take + 1,
+		...(cursor ? { cursor: { id: cursor } } : {}),
+		orderBy: { id: "desc" },
+		select: {
+			id: true,
+			content: true,
+			imageUrl: true,
+			createdAt: true,
+			authorId: true,
+			author: {
+				select: {
+					id: true,
+					name: true,
+					email: true,
+					image: true,
+					bio: true,
+					coverImageUrl: true,
+					role: true,
+					_count: { select: { followers: true, following: true } },
+				},
+			},
+			_count: { select: { likes: true, comments: true } },
+		},
+	});
+
+	let nextCursor = null;
+	if (rows.length > take) nextCursor = rows.pop().id;
+
+	// likedByMe map
+	let likedMap = {};
+	if (rows.length) {
+		const likes = await prisma.like.findMany({
+			where: { userId: viewerId, postId: { in: rows.map((r) => r.id) } },
+			select: { postId: true },
+		});
+		likedMap = Object.fromEntries(likes.map((l) => [l.postId, true]));
+	}
+
+	// follow flags (only one author)
+	let isFollowedByMe = false;
+	let followsMe = false;
+	if (viewerId !== userId) {
+		const [a, b] = await Promise.all([
+			prisma.follow.findUnique({
+				where: {
+					followerId_followingId: { followerId: viewerId, followingId: userId },
+				},
+				select: { followerId: true },
+			}),
+			prisma.follow.findUnique({
+				where: {
+					followerId_followingId: { followerId: userId, followingId: viewerId },
+				},
+				select: { followerId: true },
+			}),
+		]);
+		isFollowedByMe = !!a;
+		followsMe = !!b;
+	}
+
+	const posts = rows.map((r) => ({
+		...r,
+		likedByMe: !!likedMap[r.id],
+		author: {
+			...r.author,
+			isFollowedByMe,
+			followsMe,
+		},
+	}));
+
+	return { ok: true, posts, nextCursor, isFollowedByMe, followsMe };
 }
 
 // toggle like for the current user
