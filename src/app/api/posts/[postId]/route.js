@@ -12,12 +12,21 @@ export async function GET(_req, { params }) {
 
 		const post = await prisma.post.findUnique({
 			where: { id: postId },
-			include: {
+			select: {
+				id: true,
+				authorId: true,
+				content: true,
+				imageUrl: true,
+				createdAt: true,
 				author: {
-					select: { id: true, name: true, image: true },
-					_count: { select: { followers: true, following: true } },
+					select: {
+						id: true,
+						name: true,
+						image: true,
+						_count: { select: { followers: true, following: true } }, // 👈 inside select
+					},
 				},
-				_count: { select: { likes: true, comments: true } },
+				_count: { select: { likes: true, comments: true } }, // count for the Post itself
 			},
 		});
 

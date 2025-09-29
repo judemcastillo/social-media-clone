@@ -15,6 +15,7 @@ import {
 	fetchFollowersPage,
 	fetchFollowingPage,
 } from "@/lib/actions/profile-actions";
+import { sleep } from "@/lib/utils/sleep";
 
 export default async function ProfilePageServer({ userId }) {
 	const session = await auth();
@@ -63,8 +64,8 @@ export default async function ProfilePageServer({ userId }) {
 								/>
 							)}
 						</div>
-						<div className="row-span-2 col-span-1 m-auto col-start-1 row-start-2 bg-card rounded-full border-3  border-card w-fit z-50 -translate-x-4">
-							<Avatar src={user.image} size={100} />
+						<div className="row-span-2 col-span-1 m-auto col-start-1 row-start-2 bg-card rounded-full border-4  border-card  z-50 md:-translate-x-4 w-fit">
+							<Avatar src={user.image} size={90} />
 						</div>
 						<div className="col-start-4 row-start-3 row-span-1 col-span-1 z-60 m-auto">
 							{viewerId === user.id && session?.user?.role !== "GUEST" ? (

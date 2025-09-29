@@ -1,5 +1,5 @@
 import EditPost from "@/components/posts/EditPost";
-import { fetchOnePost } from "@/lib/helpers/fetch";
+
 
 export const dynamic = "force-dynamic";
 

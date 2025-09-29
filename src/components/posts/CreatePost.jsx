@@ -133,6 +133,7 @@ export default function PostForm({ onCreated }) {
 								fill
 								className="object-cover"
 								unoptimized
+								loading="lazy"
 							/>
 						</div>
 						<div className="mt-2">

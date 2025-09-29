@@ -13,11 +13,20 @@ import { fetchComments } from "@/lib/helpers/fetch";
 import { Avatar } from "../Avatar";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
-import { MessageCircle, SendHorizontal, Share2, ThumbsUp } from "lucide-react";
-import { ScrollArea } from "../ui/scroll-area";
+import Spinner from "../ui/spinner";
+import {
+	Loader2,
+	LoaderCircle,
+	MessageCircle,
+	SendHorizontal,
+	Share2,
+	ThumbsUp,
+} from "lucide-react";
+
 import EmojiDropdown from "../EmojiDropdown";
 import { useUser } from "../providers/user-context";
 import LikeButton from "./LikeButton";
+import { sleep } from "@/lib/utils/sleep";
 
 export default function Comments({ post, countLikes, countComments }) {
 	const postId = post.id;
@@ -167,7 +176,7 @@ export default function Comments({ post, countLikes, countComments }) {
 
 			<div className="grid grid-cols-3 text-sm  border-t-1 border-muted py-1 dark:border-gray-500">
 				<div>
-					<LikeButton post={post} handleLikeCount={handleLikeCount}/>
+					<LikeButton post={post} handleLikeCount={handleLikeCount} />
 				</div>
 				<Button
 					className="flex flex-row items-center justify-center gap-2 hover:underline cursor-pointer  p-2 "
@@ -189,53 +198,68 @@ export default function Comments({ post, countLikes, countComments }) {
 			{showComments && (
 				<div className="flex flex-col gap-2 pb-2 ">
 					<Separator className="bg-muted my-2 dark:bg-gray-500" />
-					<ScrollArea className="space-y-3 max-h-[200px] pt-2 overflow-auto">
-						{items.map((c) => (
-							<li key={c.id} className="flex gap-2 items-start w-fit px-2">
-								<Avatar
-									src={c.author?.image}
-									alt="avatar"
-									size={30}
-									className="mt-1"
-								/>
-								<div className="flex-1 ">
-									<div className="bg-muted rounded-md p-2 ">
-										<div className="text-sm">
-											<span className="font-medium">
-												{c.author?.name || c.author?.email}
-											</span>{" "}
-											<span className="opacity-60">
-												{new Date(c.createdAt).toLocaleString()}
-											</span>
-										</div>
+					<div className="space-y-3 max-h-[200px] pt-2 overflow-auto">
+						{initialLoading ? (
+							<div className="flex items-center justify-center w-full py-6">
+								<LoaderCircle className="animate-spin" />
+							</div>
+						) : (
+							items.map((c) => (
+								<li key={c.id} className="flex gap-2 items-start w-fit px-2">
+									<Avatar
+										src={c.author?.image}
+										alt="avatar"
+										size={30}
+										className="mt-1"
+									/>
+									<div className="flex-1 ">
+										<div className="bg-muted rounded-md p-2 ">
+											<div className="text-sm">
+												<span className="font-medium">
+													{c.author?.name || c.author?.email}
+												</span>{" "}
+												<span className="opacity-60">
+													{new Date(c.createdAt).toLocaleString()}
+												</span>
+											</div>
 
-										<div className="text-sm whitespace-pre-wrap">
-											{c.content}
+											<div className="text-sm whitespace-pre-wrap">
+												{c.content}
+											</div>
 										</div>
+										{(viewer?.id === c.author?.id ||
+											viewer?.role === "ADMIN") && (
+											<button
+												onClick={() => onDelete(c.id)}
+												className="ml-2 text-xs opacity-70 hover:opacity-100"
+											>
+												Delete
+											</button>
+										)}
 									</div>
-									{(viewer?.id === c.author?.id ||
-										viewer?.role === "ADMIN") && (
-										<button
-											onClick={() => onDelete(c.id)}
-											className="ml-2 text-xs opacity-70 hover:opacity-100"
-										>
-											Delete
-										</button>
-									)}
-								</div>
-							</li>
-						))}
-						{nextCursor && (
-							<Button
-								onClick={loadMore}
-								disabled={loadingMore}
-								className="self-start text-xs px-2 py-2  "
-								variant="outline"
-							>
-								{loadingMore ? "Loading…" : "View more comments"}
-							</Button>
+								</li>
+							))
 						)}
-					</ScrollArea>
+						{nextCursor && (
+							<div className="flex items-center">
+								<Button
+									onClick={loadMore}
+									disabled={loadingMore}
+									className="self-start text-xs px-2 py-2  "
+									variant="outline"
+								>
+									{loadingMore ? (
+										<div className="flex items-center gap-2">
+											<Spinner size={14} className="text-muted" />
+											<span>Loading…</span>
+										</div>
+									) : (
+										"View more comments"
+									)}
+								</Button>
+							</div>
+						)}
+					</div>
 
 					<Separator className="bg-muted my-2 dark:bg-gray-500" />
 					<form
@@ -250,26 +274,29 @@ export default function Comments({ post, countLikes, countComments }) {
 							<div className="w-fit">
 								<Avatar src={viewer?.image} alt="avatar" size={40} />
 							</div>
-							<div className="flex flex-col w-full border border-muted bg-input rounded-md flex-1">
+							<div className="flex flex-col w-full border-none bg-card rounded-md flex-1 gap-2">
 								<input
 									ref={textareaRef}
 									name="content"
 									placeholder="Write a comment…"
-									className="flex-1 px-3 py-2  rounded-b-none border-none shadow-none focus:outline-none focus:ring-0 focus:border-transparent text-[13px]"
+									className="flex-1 p-3 bg-muted rounded-lg border-none shadow-none focus:outline-none focus:ring-0 focus:border-transparent text-[13px]"
 									type="text"
 									value={content}
 									onChange={(e) => setContent(e.target.value)}
 									required
 								/>{" "}
-								<Separator className="bg-muted my-1 dark:bg-gray-500" />
-								<div className="flex justify-between items-center flex-row px-2">
+								<div className="flex justify-between items-center flex-row p-1 rounded-lg  border-muted border-1 ">
 									<EmojiDropdown onPick={insertAtCaret} />
 									<Button
-										className=" cursor-pointer w-8 text-sm rounded-full h-8  p-[2px] m-1 "
+										className=" cursor-pointer size-8 text-sm rounded-full h-8  p-[2px] m-1 "
 										disabled={pending}
 										variant="default"
 									>
-										{pending ? "…" : <SendHorizontal className="size-4" />}
+										{pending ? (
+											<Loader2 className="animate-spin text-muted" />
+										) : (
+											<SendHorizontal className="size-4" />
+										)}
 									</Button>
 								</div>
 							</div>

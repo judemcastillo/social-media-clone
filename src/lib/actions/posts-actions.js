@@ -11,11 +11,59 @@ import { randomUUID } from "node:crypto";
 const updateSchema = z.object({
 	postId: z.string().min(1),
 	content: z.string().min(1).max(5000),
+	imageUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
 });
 const createSchema = z.object({ content: z.string().min(1).max(5000) });
 
 const BUCKET = process.env.SUPABASE_BUCKET || "posts";
 const MAX_MB = 5;
+
+export async function fetchOnePostAction(postId) {
+	try {
+		if (!postId) return { ok: false, status: 400, error: "Missing postId" };
+
+		const session = await auth();
+		const viewerId = session?.user?.id ?? null;
+
+		// Use SELECT only (no include), and nest _count correctly under author.select
+		const post = await prisma.post.findUnique({
+			where: { id: postId },
+			select: {
+				id: true,
+				authorId: true,
+				content: true,
+				imageUrl: true,
+				createdAt: true,
+				author: {
+					select: {
+						id: true,
+						name: true,
+						image: true,
+						_count: { select: { followers: true, following: true } }, // 👈 inside select
+					},
+				},
+				_count: { select: { likes: true, comments: true } }, // count for the Post itself
+			},
+		});
+
+		if (!post) return { ok: false, status: 404, error: "Not found" };
+
+		// Optional: likedByMe
+		let likedByMe = false;
+		if (viewerId) {
+			const like = await prisma.like.findUnique({
+				where: { postId_userId: { postId, userId: viewerId } },
+				select: { postId: true },
+			});
+			likedByMe = !!like;
+		}
+
+		return { ok: true, post: { ...post, likedByMe } };
+	} catch (e) {
+		console.error("fetchOnePostAction error:", e);
+		return { ok: false, status: 500, error: "Server error" };
+	}
+}
 
 export async function createPost(prev, formData) {
 	try {
@@ -394,46 +442,107 @@ export async function deleteComment(prev, formData) {
 }
 
 export async function updatePostAction(prev, formData) {
-	const session = await auth();
+	try {
+		const session = await auth();
+		const me = session?.user?.id;
+		const role = session?.user?.role || "USER";
+		if (!me) return { ok: false, error: "Unauthorized" };
 
-	if (!session?.user?.id) {
-		return { ok: false, error: "Unauthorized" };
+		const parsed = updateSchema.safeParse({
+			postId: formData.get("postId"),
+			content: formData.get("content"),
+			removeImage: formData.get("removeImage") ?? "0",
+		});
+		if (!parsed.success)
+			return { ok: false, error: "Please check your inputs." };
+
+		const { postId, content, removeImage } = parsed.data;
+
+		// Author/Admin gate
+		const existing = await prisma.post.findUnique({
+			where: { id: postId },
+			select: { authorId: true },
+		});
+		if (!existing) return { ok: false, error: "Post not found" };
+		if (existing.authorId !== me && role !== "ADMIN") {
+			return { ok: false, error: "Forbidden" };
+		}
+
+		// Handle file (if provided)
+		const file = formData.get("image");
+		let uploadedUrl = null;
+
+		if (
+			file &&
+			typeof file === "object" &&
+			"arrayBuffer" in file &&
+			file.size > 0
+		) {
+			const arrayBuf = await file.arrayBuffer();
+			const bytes = Buffer.from(arrayBuf);
+
+			const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+			const SERVICE_KEY =
+				process.env.SUPABASE_SERVICE_ROLE_KEY ||
+				process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+			const BUCKET = process.env.NEXT_PUBLIC_SUPABASE_BUCKET || "post-images";
+			if (!SUPABASE_URL || !SERVICE_KEY) {
+				return { ok: false, error: "Storage is not configured" };
+			}
+
+			const ext = (file.name?.split(".").pop() || "jpg").toLowerCase();
+			const path = `posts/${existing.authorId}/${postId}-${Date.now()}.${ext}`;
+
+			const resp = await fetch(
+				`${SUPABASE_URL}/storage/v1/object/${encodeURIComponent(
+					BUCKET
+				)}/${encodeURIComponent(path)}`,
+				{
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${SERVICE_KEY}`,
+						apikey: SERVICE_KEY,
+						"Content-Type": file.type || "application/octet-stream",
+					},
+					body: bytes,
+				}
+			);
+
+			if (!resp.ok) {
+				const text = await resp.text().catch(() => "");
+				console.error("Upload failed:", resp.status, text);
+				return { ok: false, error: "Image upload failed" };
+			}
+
+			uploadedUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+		}
+
+		// Decide the image update
+		let imageUpdate = {};
+		if (uploadedUrl) {
+			imageUpdate.imageUrl = uploadedUrl; // set new image
+		} else if (removeImage === "1") {
+			imageUpdate.imageUrl = null; // clear image
+		} // else keep existing image as-is
+
+		const updated = await prisma.post.update({
+			where: { id: postId },
+			data: { content: content.trim(), ...imageUpdate },
+			select: {
+				id: true,
+				content: true,
+				imageUrl: true,
+				createdAt: true,
+				author: { select: { id: true, name: true, email: true, image: true } },
+				_count: { select: { likes: true, comments: true } },
+			},
+		});
+
+		revalidatePath("/home");
+		revalidatePath(`/post/${postId}`, "page");
+		return { ok: true, id: updated.id, post: updated };
+	} catch (e) {
+		console.error("updatePostAction error:", e);
+		return { ok: false, error: "Something went wrong" };
 	}
-
-	const parsed = updateSchema.safeParse(Object.fromEntries(formData));
-	if (!parsed.success) {
-		return { ok: false, error: "Say something first." };
-	}
-
-	const post = await prisma.post.findUnique({
-		where: { id: parsed.data.postId },
-		select: { authorId: true },
-	});
-
-	if (!post) {
-		return { ok: false, error: "Not found" };
-	}
-
-	const isOwner = post.authorId === session.user.id;
-	const isAdmin = session.user.role === "ADMIN";
-
-	if (!isOwner && !isAdmin) {
-		return { ok: false, error: "Forbidden" };
-	}
-
-	const updated = await prisma.post.update({
-		where: { id: parsed.data.postId },
-		data: { content: parsed.data.content.trim() },
-		select: {
-			id: true,
-			content: true,
-			createdAt: true,
-			author: { select: { id: true, name: true, email: true, image: true } },
-			_count: { select: { likes: true, comments: true } },
-		},
-	});
-
-	revalidatePath("/home");
-
-	return { ok: true, post: updated };
 }

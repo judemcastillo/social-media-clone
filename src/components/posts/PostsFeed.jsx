@@ -83,6 +83,7 @@ export default function PostsFeed({
 									fill
 									className="object-contain rounded-lg"
 									loading="lazy"
+									unoptimized
 								/>
 							</div>
 						)}
