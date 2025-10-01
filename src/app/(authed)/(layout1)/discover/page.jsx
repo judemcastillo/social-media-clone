@@ -1,70 +1,41 @@
-import prisma from "@/lib/prisma";
+
 import { auth } from "@/auth";
 import DiscoverList from "@/components/discover/DiscoverList";
+import { fetchUsersAction } from "@/lib/actions/discover-actions";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-const LIMIT = 12;
+
 
 export default async function DiscoverPage() {
 	const session = await auth();
 	const viewerId = session?.user?.id ?? null;
 	const viewerRole = session?.user?.role ?? "USER";
 
-	const rows = await prisma.user.findMany({
-		where: { id: { not: viewerId } },
-		take: LIMIT + 1,
-		orderBy: [
-			{ followers: { _count: "desc" } },
-			{ following: { _count: "desc" } },
-			{ id: "desc" },
-		],
-		select: {
-			id: true,
-			name: true,
-			email: true,
-			image: true,
-			role: true,
-			bio: true,
-			coverImageUrl: true,
-			_count: { select: { followers: true, following: true } },
-		},
-	});
+	const { ok, users, nextCursor } = await fetchUsersAction();
+	const initialUsers = users;
 
-	let nextCursor = null;
-	if (rows.length > LIMIT) nextCursor = rows[rows.length - 1].id;
-	const users = rows.slice(0, LIMIT);
-
-	// follow flags for initial batch
-	let followSet = new Set();
-	let backSet = new Set();
-	if (viewerId && users.length) {
-		const ids = users.map((u) => u.id);
-		const edges = await prisma.follow.findMany({
-			where: {
-				OR: [
-					{ followerId: viewerId, followingId: { in: ids } },
-					{ followerId: { in: ids }, followingId: viewerId },
-				],
-			},
-			select: { followerId: true, followingId: true },
-		});
-		followSet = new Set(
-			edges.filter((e) => e.followerId === viewerId).map((e) => e.followingId)
+	if (!ok)
+		return (
+			<div className="mx-auto max-w-[700px] py-4 max-h-[93vh] overflow-y-auto scrollbar-none w-full">
+				<Card>
+					<CardHeader>
+						<CardTitle>Something went wrong</CardTitle>
+					</CardHeader>
+					<CardContent className="text-sm hover:underline text-muted-foreground ">
+						<Link href="/home" className="flex flex-row items-center gap-2">
+							<ArrowLeft className="size-5"/> <span>go back to home</span>
+						</Link>
+					</CardContent>
+				</Card>
+			</div>
 		);
-		backSet = new Set(
-			edges.filter((e) => e.followingId === viewerId).map((e) => e.followerId)
-		);
-	}
-
-	const initialUsers = users.map((u) => ({
-		...u,
-		isFollowedByMe: followSet.has(u.id),
-		followsMe: backSet.has(u.id),
-	}));
 
 	return (
-		<main className="mx-auto max-w-[700px] py-4 max-h-[93vh] overflow-y-auto scrollbar-none w-full">
+		<main className=" max-w-[700px] py-4 max-h-[93vh] overflow-y-auto scrollbar-none w-full ">
 			<h1 className="text-xl font-semibold mb-4">Discover Yappers</h1>
 
 			<DiscoverList

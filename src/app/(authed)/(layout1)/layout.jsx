@@ -8,7 +8,7 @@ export default function RootLayout({ children }) {
 			<div className="hidden lg:block col-span-1 ">
 				<LeftSideBar />
 			</div>
-			<div className="col-span-2 h-full ">{children}</div>
+			<div className="col-span-2 h-full flex flex-col items-center">{children}</div>
 			<div className="hidden lg:block col-span-1 ">
 				<RightSideBar />
 			</div>

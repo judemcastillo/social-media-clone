@@ -2,14 +2,10 @@
 
 import { Card } from "../ui/card";
 import PostMenu from "./PostMenu";
-import { useEffect, useState, useCallback } from "react";
 import Comments from "./Comments";
-import { MessageCircle, Share2, ThumbsUp } from "lucide-react";
-import LikeButton from "./LikeButton";
 import { Avatar } from "../Avatar";
 import Image from "next/image";
 import { Button } from "../ui/button";
-import Link from "next/link";
 import {
 	HoverCard,
 	HoverCardContent,
@@ -20,15 +16,15 @@ import { useUser } from "../providers/user-context";
 
 export default function PostsFeed({
 	posts = [],
-	nextCursor,
-	loadMore,
-	loading,
-	onDeleted,
+	nextCursor = null,
+	loadMore = null,
+	loading = null,
+	onDeleted = null,
 }) {
 	const viewer = useUser();
 	const isAdmin = viewer?.role === "ADMIN";
 
-	if (!posts.length) return <p className="opacity-70">No Yaps</p>;
+	if (!posts.length) return <Card className="opacity-80 text-center">No Yaps</Card>;
 
 	return (
 		<div className="w-full max-w-[700px] space-y-3 flex flex-col items-center">
@@ -109,7 +105,7 @@ export default function PostsFeed({
 						{loading ? "Loading…" : "Load more"}
 					</Button>
 				) : (
-					<span className="opacity-60 text-sm">No more posts</span>
+					<span className="opacity-60 text-sm"></span>
 				)}
 			</div>
 		</div>
