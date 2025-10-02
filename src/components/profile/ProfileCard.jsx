@@ -62,12 +62,14 @@ export default function ProfileCard({ u, canFollow, viewerId, author }) {
 							<div></div>
 						) : canFollow ? (
 							<div className="flex items-center gap-2 justify-center flex-row w-full ">
-								<Button
-									variant="default"
-									className="rounded-full p-1 cursor-pointer text-xs size-8"
-								>
-									<MessageCirclePlusIcon />
-								</Button>
+								<Link href={`/messages/${u.id}`}>
+									<Button
+										variant="default"
+										className="rounded-full p-1 cursor-pointer text-xs size-8"
+									>
+										<MessageCirclePlusIcon />
+									</Button>
+								</Link>
 								<FollowButton
 									viewerId={viewerId}
 									targetId={u.id}

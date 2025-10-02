@@ -13,6 +13,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ConversationRole {
+  MEMBER
+  ADMIN
+}
+
+enum ParticipantStatus {
+  INVITED
+  JOINED
+  LEFT
+}
+
 enum Role {
   USER
   ADMIN
@@ -39,12 +50,16 @@ model User {
 
   // future relations:
 
-  followers  Follow[]    @relation("followers") // users who follow THIS user
-  following  Follow[]    @relation("following") // users THIS user follows
-  Credential Credential?
-  Post       Post[]
-  Comment    Comment[]
-  Like       Like[]
+  followers               Follow[]                  @relation("followers") // users who follow THIS user
+  following               Follow[]                  @relation("following") // users THIS user follows
+  Credential              Credential?
+  Post                    Post[]
+  Comment                 Comment[]
+  Like                    Like[]
+  Conversation            Conversation[]
+  ConversationParticipant ConversationParticipant[]
+  Message                 Message[]
+  MessageRead             MessageRead[]
 }
 
 model Account {
@@ -155,4 +170,74 @@ model Follow {
 
   @@id([followerId, followingId]) // one row per edge
   @@index([followingId, followerId]) // quick lookups
+}
+
+model Conversation {
+  id           String                    @id @default(cuid())
+  isGroup      Boolean                   @default(false) // true for group/rooms
+  isPublic     Boolean                   @default(false) // true = open room (anyone can join)
+  title        String?
+  createdById  String
+  createdBy    User                      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  participants ConversationParticipant[]
+  messages     Message[]
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  @@index([isPublic])
+}
+
+model ConversationParticipant {
+  conversationId String
+  userId         String
+  role           ConversationRole  @default(MEMBER)
+  status         ParticipantStatus @default(JOINED)
+  joinedAt       DateTime          @default(now())
+  invitedById    String?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  authorId       String
+  content        String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author       User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  attachments MessageAttachment[]
+  reads       MessageRead[]
+
+  @@index([conversationId, createdAt])
+}
+
+model MessageAttachment {
+  id        String @id @default(cuid())
+  messageId String
+  url       String
+  type      String // "image" | "video" | "file"
+  width     Int?
+  height    Int?
+  size      Int?
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model MessageRead {
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@index([userId])
 }
