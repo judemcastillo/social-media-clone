@@ -15,7 +15,7 @@ export default async function RootLayout({ children }) {
 					<Header />
 				</div>
 				{children}
-			</div>
+			</div> 
 		</UserProvider>
 	);
 }

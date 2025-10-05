@@ -2,17 +2,43 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useSocket } from "@/components/chat/useSocket";
-import { Card } from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card";
 import { Avatar } from "@/components/Avatar";
-import { fetchMessagesPage } from "@/lib/actions/conversation-actions";
-import { uploadToSupabase } from "@/lib/supabase-upload"; // reuse your existing helper
+import {
+	fetchMessagesPage,
+	markConversationRead,
+} from "@/lib/actions/conversation-actions";
+import { uploadToSupabase } from "@/lib/supabase-upload";
+import { Button } from "@/components/ui/button";
+import { CirclePlus, Send } from "lucide-react";
+import { ScrollArea } from "@radix-ui/react-scroll-area";
+import { useUser } from "@/components/providers/user-context";
+
+function relativeTime(ts) {
+	const t =
+		typeof ts === "string"
+			? new Date(ts).getTime()
+			: ts?.getTime?.() ?? Date.now();
+	const s = Math.max(0, Math.floor((Date.now() - t) / 1000));
+	if (s < 60) return "just now";
+	const m = Math.floor(s / 60);
+	if (m < 60) return `${m}m`;
+	const h = Math.floor(m / 60);
+	if (h < 24) return `${h}h`;
+	const d = Math.floor(h / 24);
+	return `${d}d`;
+}
 
 export default function ChatRoom({
 	conversationId,
 	initialMessages = [],
 	initialCursor = null,
+	peers,
+	title,
 }) {
+	const viewer = useUser();
 	const socket = useSocket();
+
 	const [items, setItems] = useState(initialMessages);
 	const [cursor, setCursor] = useState(initialCursor);
 	const [text, setText] = useState("");
@@ -20,17 +46,48 @@ export default function ChatRoom({
 	const [loadingMore, startMore] = useTransition();
 	const bottomRef = useRef(null);
 
-	// join socket room
+	// Track joined room + seen message ids to prevent duplicates
+	const joinedRef = useRef(null);
+	const seenIdsRef = useRef(
+		new Set(initialMessages.map((m) => m.id).filter(Boolean))
+	);
+
+	// Helper: append only if not seen
+	const appendUnique = (message) => {
+		const id = message?.id;
+		if (id && seenIdsRef.current.has(id)) return;
+		if (id) seenIdsRef.current.add(id);
+		setItems((prev) => [...prev, message]);
+	};
+
 	useEffect(() => {
-		if (!socket) return;
-		socket.emit("conversation:join", { conversationId });
-		const onNew = ({ message }) => setItems((prev) => [...prev, message]);
+		if (!conversationId || !items.length) return;
+		markConversationRead({ conversationId });
+	}, [conversationId, items.length]);
+
+	// Join socket room once per conversation + attach a single listener
+	useEffect(() => {
+		if (!socket || !conversationId) return;
+
+		if (joinedRef.current !== conversationId) {
+			socket.emit("conversation:join", { conversationId });
+			joinedRef.current = conversationId;
+		}
+
+		const onNew = ({ message }) => {
+			appendUnique(message);
+		};
+
+		// Clear any stale handlers for this event on this socket, then attach
+		socket.off("message:new");
 		socket.on("message:new", onNew);
+
 		return () => {
 			socket.off("message:new", onNew);
 		};
-	}, [socket, conversationId]);
+	}, [socket, conversationId]); // keep deps minimal so we don't rebind unnecessarily
 
+	// Auto-scroll to bottom on new messages
 	useEffect(() => {
 		bottomRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [items.length]);
@@ -49,7 +106,7 @@ export default function ChatRoom({
 	async function onPickFile(e) {
 		const file = e.target.files?.[0];
 		if (!file) return;
-		const url = await uploadToSupabase(file, { folder: "chat" }); // returns public URL
+		const url = await uploadToSupabase(file, { folder: "chat" });
 		await sendMessage({ content: "", attachments: [{ url, type: "image" }] });
 		e.target.value = "";
 	}
@@ -69,71 +126,140 @@ export default function ChatRoom({
 				cursor,
 				limit: 30,
 			});
-			setItems((prev) => [...res.messages, ...prev]);
+			// prepend older, but dedupe against seen
+			setItems((prev) => {
+				const uniques = (res.messages || []).filter((m) => {
+					if (!m?.id) return true;
+					if (seenIdsRef.current.has(m.id)) return false;
+					seenIdsRef.current.add(m.id);
+					return true;
+				});
+				return [...uniques, ...prev];
+			});
 			setCursor(res.nextCursor);
 		});
 	};
 
 	return (
-		<main className="mx-auto max-w-[700px] py-4 w-full">
-			<Card className="p-3 h-[75vh] flex flex-col">
-				<div className="flex-1 overflow-y-auto space-y-3 pr-1">
+		<main className="p-6 px-5 h-[93vh] w-full overflow-y-auto">
+			<Card className="p-4 h-full flex flex-col">
+				<CardTitle className="h-12 flex flex-row items-center border-b-1 dark:border-gray-500 pb-3">
+					<span className="flex flex-row gap-2 items-center">
+						{peers && <Avatar src={peers[0]?.image} size={30} />}
+						{title || "Conversation"}
+					</span>
+				</CardTitle>
+
+				<div className="flex-1 overflow-y-auto space-y-3">
 					{cursor && (
-						<button
-							onClick={loadMore}
-							disabled={loadingMore}
-							className="mx-auto text-xs underline opacity-70"
-						>
-							{loadingMore ? "Loading…" : "Load older"}
-						</button>
-					)}
-					{items.map((m) => (
-						<div key={m.id} className="flex gap-2 items-start">
-							<Avatar src={m.author?.image} size={28} />
-							<div>
-								<div className="text-xs opacity-70">
-									{m.author?.name} ·{" "}
-									{new Date(m.createdAt).toLocaleTimeString()}
-								</div>
-								{m.content && (
-									<div className="text-sm whitespace-pre-wrap">{m.content}</div>
-								)}
-								{m.attachments?.map((a) => (
-									<img
-										key={a.id}
-										src={a.url}
-										alt=""
-										className="mt-1 max-h-64 rounded"
-									/>
-								))}
-							</div>
+						<div className="flex flex-row items-center">
+							<button
+								onClick={loadMore}
+								disabled={loadingMore}
+								className="mx-auto text-xs underline opacity-70"
+							>
+								{loadingMore ? "Loading…" : "Load older"}
+							</button>
 						</div>
-					))}
+					)}
+
+					<ScrollArea className="bg-card rounded-xl space-y-3 pr-3 flex flex-col">
+						{items.map((m) => {
+							const mine = m.author?.id === viewer?.id;
+							const displayName = mine
+								? "You"
+								: m.author?.name || m.author?.email || "User";
+
+							return (
+								<div
+									key={m.id}
+									className={`flex gap-2 items-end ${
+										mine ? "justify-end" : ""
+									}`}
+								>
+									{!mine && (
+										<div className="pb-5">
+											<Avatar src={m.author?.image} size={28} />
+										</div>
+									)}
+
+									<div
+										className={`space-y-1 max-w-[80%] ${
+											mine ? "items-end text-right flex flex-col" : ""
+										}`}
+									>
+										<div className="text-xs opacity-70 px-3">{displayName}</div>
+
+										<div
+											className={`rounded-xl px-4 py-1 w-fit ${
+												mine
+													? "bg-primary text-primary-foreground ml-auto"
+													: "bg-muted"
+											}`}
+										>
+											{m.content && (
+												<div className="text-sm whitespace-pre-wrap">
+													{m.content}
+												</div>
+											)}
+											{m.attachments?.map((a) => (
+												<img
+													key={a.id ?? a.url}
+													src={a.url}
+													alt=""
+													className={`py-3 max-h-64 rounded  p-1 ${
+														mine ? "ml-auto" : ""
+													}`}
+												/>
+											))}
+										</div>
+										<div className="text-xs opacity-70 px-3">
+											{relativeTime(m.createdAt)}
+										</div>
+									</div>
+
+									{mine && (
+										<div className="pb-5">
+											<Avatar src={viewer?.image} size={28} />
+										</div>
+									)}
+								</div>
+							);
+						})}
+					</ScrollArea>
+
 					<div ref={bottomRef} />
 				</div>
 
-				<div className="border-t pt-2 flex items-center gap-2">
-					<input
-						type="file"
-						accept="image/*"
-						onChange={onPickFile}
-						className="text-xs"
-					/>
+				<div className="border-t pt-2 flex items-center gap-2 px-1 dark:border-gray-500">
+					<label className="cursor-pointer">
+						<CirclePlus className="text-secondary" />
+						<input
+							type="file"
+							accept="image/*"
+							onChange={onPickFile}
+							className="hidden"
+						/>
+					</label>
+
 					<textarea
-						className="flex-1 text-sm bg-transparent outline-none resize-none h-10"
+						className="flex-1 text-sm bg-accent outline-none resize-none p-2 rounded-2xl h-10"
 						placeholder="Type a message…"
+						rows={2}
 						value={text}
 						onChange={(e) => setText(e.target.value)}
 						onKeyDown={onEnter}
 						disabled={sending}
 					/>
-					<button
+
+					<Button
 						onClick={() => text.trim() && sendMessage({ content: text.trim() })}
 						disabled={sending || !text.trim()}
-						className="px-3 py-1 text-sm rounded border"
+						className="cursor-pointer rounded-full p-0"
+						variant="default"
 					>
-						Send
-					</button>
+						<Send className="size-3.5" />
+					</Button>
 				</div>
 			</Card>
 		</main>
