@@ -8,7 +8,8 @@
 		"start": "next start",
 		"lint": "eslint",
 		"backfill:avatars": "node scripts/backfill-avatars.mjs",
-		"avatars:convert": "node scripts/convert-avatars-to-png.js"
+		"avatars:convert": "node scripts/convert-avatars-to-png.js",
+		"socket-test": "node --experimental-modules scripts/socket-test.mjs"
 	},
 	"dependencies": {
 		"@auth/prisma-adapter": "^2.10.0",

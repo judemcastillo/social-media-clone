@@ -28,7 +28,7 @@ export default async function EditProfilePage({ params:p }) {
 	});
 
 	return (
-		<main className="mx-auto max-w-[700px] space-y-4 py-6 max-h-[93vh] overflow-y-auto scrollbar-none">
+		<main className=" max-w-[700px] space-y-4 py-6 max-h-[93vh] overflow-y-auto scrollbar-none w-full">
 			<h1 className="text-xl font-semibold">Edit profile</h1>
 			<EditProfileForm user={user} />
 		</main>

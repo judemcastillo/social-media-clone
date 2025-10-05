@@ -234,13 +234,16 @@ io.on("connection", (socket) => {
 					},
 				});
 
-				// 🔔 Broadcast to every participant's user room
+				// 🔔 Broadcast to the conversation room so sockets that joined the room
+				// receive the event directly. Also notify each participant's user room
+				// for any clients that haven't joined the conversation room yet.
+				// Clients dedupe duplicate events by message id.
+				io.to(`c:${conversationId}`).emit("message:new", { message: msg });
+
 				const memberIds = await getMemberUserIds(conversationId);
 				memberIds.forEach((uid) => {
 					io.to(`user:${uid}`).emit("message:new", { message: msg });
 				});
-
-				// ⛔️ DO NOT also do: io.to(`c:${conversationId}`).emit(...) — that’s what causes duplicates
 			} catch (e) {
 				console.error("message:send error:", e);
 				socket.emit("error", { message: "Failed to send message" });
@@ -260,6 +263,42 @@ io.on("connection", (socket) => {
 	socket.on("disconnect", () => {
 		io.emit("presence:offline", { userId });
 	});
+
+	// Development-only test helper: trigger the same emission path without DB
+	// Usage (only when NODE_ENV !== 'production'):
+	// socket.emit('__test:emit', { conversationId, message, memberIds: ['userA','userB'] })
+	if (process.env.NODE_ENV !== "production") {
+		socket.on(
+			"__test:emit",
+			async ({ conversationId, message, memberIds = null }) => {
+				try {
+					// emit to conversation room first
+					io.to(`c:${conversationId}`).emit("message:new", { message });
+
+					// determine memberIds if not provided
+					if (!memberIds) {
+						memberIds = await getMemberUserIds(conversationId);
+					}
+
+					// Build set of socket ids in conversation room so we can avoid
+					// double-notifying sockets that are already in the room.
+					const convRoom =
+						io.sockets.adapter.rooms.get(`c:${conversationId}`) || new Set();
+
+					for (const uid of memberIds) {
+						const userRoom = io.sockets.adapter.rooms.get(`user:${uid}`);
+						if (!userRoom) continue;
+						for (const sid of userRoom) {
+							if (convRoom.has(sid)) continue; // socket already in conversation room
+							io.to(sid).emit("message:new", { message });
+						}
+					}
+				} catch (e) {
+					console.error("__test:emit error", e);
+				}
+			}
+		);
+	}
 });
 
 httpServer.listen(PORT, () => {

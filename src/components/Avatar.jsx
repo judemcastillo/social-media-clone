@@ -1,7 +1,12 @@
+import { dicebearAvatar } from "@/lib/avatar";
 import Image from "next/image";
 
 function normalizeAvatar(url, size = 256) {
 	try {
+		if (url === null) {
+			url = dicebearAvatar(12);
+			return url;
+		}
 		const u = new URL(url);
 		if (u.hostname === "api.dicebear.com" && u.pathname.includes("/svg")) {
 			u.pathname = u.pathname.replace("/svg", "/png");
@@ -21,7 +26,9 @@ export function Avatar({ src, alt, size = 64, className = "" }) {
 			alt={alt || "avatar"}
 			width={size}
 			height={size}
-			className={`rounded-full border-sky-300 border-2 p-[4px] aspect-square object-cover size-${size/4} ${className}`}
+			className={`rounded-full border-sky-300 border-2 p-[4px] aspect-square object-cover size-${
+				size / 4
+			} ${className}`}
 			unoptimized
 			loading="lazy"
 		/>

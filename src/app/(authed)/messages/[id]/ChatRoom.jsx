@@ -75,11 +75,13 @@ export default function ChatRoom({
 		}
 
 		const onNew = ({ message }) => {
+			// Guard: ignore messages that don't belong to this conversation
+			if (!message || message.conversationId !== conversationId) return;
 			appendUnique(message);
 		};
 
 		// Clear any stale handlers for this event on this socket, then attach
-		socket.off("message:new");
+		socket.off("message:new", onNew);
 		socket.on("message:new", onNew);
 
 		return () => {
