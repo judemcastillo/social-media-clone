@@ -10,7 +10,25 @@ import { useSocket } from "@/components/chat/useSocket";
 import { useUser } from "@/components/providers/user-context";
 import { usePathname } from "next/navigation";
 
-const TABS = ["All", "Unread", "Groups", "Rooms"];
+function getLastActivityTimestamp(conversation) {
+	const lastMessageAt = conversation?.messages?.[0]?.createdAt;
+	if (lastMessageAt) {
+		const ts = new Date(lastMessageAt).getTime();
+		if (!Number.isNaN(ts)) return ts;
+	}
+	const updatedAt = conversation?.updatedAt;
+	if (updatedAt) {
+		const ts = new Date(updatedAt).getTime();
+		if (!Number.isNaN(ts)) return ts;
+	}
+	return 0;
+}
+
+function sortConversationsByActivity(list = []) {
+	return [...list].sort(
+		(a, b) => getLastActivityTimestamp(b) - getLastActivityTimestamp(a)
+	);
+}
 
 export default function ConversationsClient({ initialItems = [] }) {
 	const viewer = useUser();
@@ -29,14 +47,25 @@ export default function ConversationsClient({ initialItems = [] }) {
 		return { routeId: parts[1] || "", routeKind: "dm" };
 	}, [pathname]);
 
-	const [items, setItems] = useState(initialItems);
-	useEffect(() => setItems(initialItems), [initialItems]);
+	const [items, setItems] = useState(() =>
+		sortConversationsByActivity(initialItems)
+	);
+	useEffect(
+		() => setItems(sortConversationsByActivity(initialItems)),
+		[initialItems]
+	);
+	const unreadTotal = useMemo(
+		() => items.reduce((sum, c) => sum + (c.unreadCount || 0), 0),
+		[items]
+	);
 
 	const [q, setQ] = useState("");
 	const [tab, setTab] = useState("All");
 
 	// --- NEW: track which rooms we've joined so we don't spam the server ---
 	const joinedRef = useRef(new Set());
+	// Prevent duplicate socket emissions from inflating local unread counts
+	const seenMessagesRef = useRef({ ids: new Set(), order: [] });
 
 	// Join all conversation rooms we know about; re-join on socket reconnect
 
@@ -61,36 +90,48 @@ export default function ConversationsClient({ initialItems = [] }) {
 		return () => socket.off("connect", onConnect);
 	}, [socket, items]);
 
-        // live updates
-        useEffect(() => {
-                if (!socket) return;
+	// live updates
+	useEffect(() => {
+		if (!socket) return;
 
-                const extractConversation = (payload) => {
-                        if (!payload) return null;
-                        if (payload.conversation) return payload.conversation;
-                        if (payload.room) return payload.room;
-                        return payload;
-                };
+		const extractConversation = (payload) => {
+			if (!payload) return null;
+			if (payload.conversation) return payload.conversation;
+			if (payload.room) return payload.room;
+			return payload;
+		};
 
-                const onNewConversation = (payload) => {
-                        const conversation = extractConversation(payload);
-                        if (!conversation?.id) return;
+		const onNewConversation = (payload) => {
+			const conversation = extractConversation(payload);
+			if (!conversation?.id) return;
 
-                        setItems((prev) => {
-                                if (prev.some((c) => c.id === conversation.id)) return prev;
-                                return [conversation, ...prev];
-                        });
+			setItems((prev) => {
+				if (prev.some((c) => c.id === conversation.id)) return prev;
+				return sortConversationsByActivity([conversation, ...prev]);
+			});
 
-                        // NEW: immediately join the newly created conversation room
-                        const joined = joinedRef.current;
-                        if (!joined.has(conversation.id)) {
-                                socket.emit("conversation:join", { conversationId: conversation.id });
-                                joined.add(conversation.id);
-                        }
-                };
+			// NEW: immediately join the newly created conversation room
+			const joined = joinedRef.current;
+			if (!joined.has(conversation.id)) {
+				socket.emit("conversation:join", { conversationId: conversation.id });
+				joined.add(conversation.id);
+			}
+		};
 
-                const onNewMessage = ({ message }) => {
-                        if (!message?.conversationId) return;
+		const onNewMessage = ({ message }) => {
+			if (!message?.conversationId) return;
+
+			const messageId = message.id;
+			if (messageId) {
+				const seen = seenMessagesRef.current;
+				if (seen.ids.has(messageId)) return;
+				seen.ids.add(messageId);
+				seen.order.push(messageId);
+				if (seen.order.length > 200) {
+					const oldest = seen.order.shift();
+					if (oldest) seen.ids.delete(oldest);
+				}
+			}
 
 			setItems((prev) => {
 				const idx = prev.findIndex((c) => c.id === message.conversationId);
@@ -124,23 +165,21 @@ export default function ConversationsClient({ initialItems = [] }) {
 			});
 		};
 
-                const conversationEvents = [
-                        "conversation:new",
-                        "conversation:room:new",
-                        "room:new",
-                ];
+		const conversationEvents = [
+			"conversation:new",
+			"conversation:room:new",
+			"room:new",
+		];
 
-                conversationEvents.forEach((event) =>
-                        socket.on(event, onNewConversation)
-                );
-                socket.on("message:new", onNewMessage);
-                return () => {
-                        conversationEvents.forEach((event) =>
-                                socket.off(event, onNewConversation)
-                        );
-                        socket.off("message:new", onNewMessage);
-                };
-        }, [socket, viewerId, routeId, routeKind]);
+		conversationEvents.forEach((event) => socket.on(event, onNewConversation));
+		socket.on("message:new", onNewMessage);
+		return () => {
+			conversationEvents.forEach((event) =>
+				socket.off(event, onNewConversation)
+			);
+			socket.off("message:new", onNewMessage);
+		};
+	}, [socket, viewerId, routeId, routeKind]);
 
 	// zero local unread when viewing that conversation
 	useEffect(() => {
@@ -227,13 +266,20 @@ export default function ConversationsClient({ initialItems = [] }) {
 										: "border-transparent text-gray-500 hover:text-foreground-muted hover:border-gray-300"
 								}`}
 							>
-								{t}
+								<span className="inline-flex items-center gap-1">
+									{t}
+									{t === "Unread" && unreadTotal > 0 && (
+										<span className="min-w-[15px] h-[15px] px-1 rounded-full bg-red-500 text-white text-[10px] leading-[18px] flex items-center justify-center">
+											{unreadTotal > 99 ? "99+" : unreadTotal}
+										</span>
+									)}
+								</span>
 							</button>
 						))}
 					</div>
 				</div>
 
-				<ScrollArea>
+				<ScrollArea className="overflow-y-auto">
 					{filtered.map((c) => {
 						const { peerForDM, title } = getPeerAndTitle(c);
 						const last = c.messages?.[0];
@@ -251,7 +297,7 @@ export default function ConversationsClient({ initialItems = [] }) {
 						return (
 							<Card
 								key={c.id}
-								className={`p-3 flex justify-between rounded-none border-muted ${
+								className={`p-3 flex justify-between rounded-none border-muted w-full max-w-[350px] ${
 									isActive ? "bg-primary/10" : ""
 								}`}
 							>
@@ -262,10 +308,14 @@ export default function ConversationsClient({ initialItems = [] }) {
 											<div className="font-medium hover:underline">{title}</div>
 										</Link>
 										{last ? (
-											<div className="text-xs opacity-70 overflow-ellipsis truncate">
+											<div
+												className={`text-xs opacity-70 overflow-ellipsis truncate w-[230px] ${
+													c.unreadCount > 0 ? "font-bold" : ""
+												}`}
+											>
 												{last.author?.id === viewerId
 													? "You: "
-													: `${last.author?.name ?? ""} `}
+													: `${last.author?.name ?? ""}: `}
 												{last.attachments?.length
 													? "[attachment]"
 													: last.content}
@@ -274,15 +324,14 @@ export default function ConversationsClient({ initialItems = [] }) {
 											<div className="text-xs opacity-70">No messages yet</div>
 										)}
 									</div>
+									{(c.unreadCount || 0) > 0 && (
+										<div className="flex items-center flex-row">
+											<span className="min-w-[20px] h-[20px] px-1 rounded-full bg-red-500 text-white text-[11px] flex items-center justify-center">
+												{c.unreadCount > 99 ? "99+" : c.unreadCount}
+											</span>
+										</div>
+									)}
 								</div>
-
-								{(c.unreadCount || 0) > 0 && (
-									<div className="flex items-center">
-										<span className="min-w-[20px] h-[20px] px-1 rounded-full bg-red-500 text-white text-[11px] flex items-center justify-center">
-											{c.unreadCount > 99 ? "99+" : c.unreadCount}
-										</span>
-									</div>
-								)}
 							</Card>
 						);
 					})}

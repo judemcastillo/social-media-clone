@@ -8,11 +8,11 @@ export default async function RootLayout({ children }) {
 	const { conversations } = await fetchConversations();
 	return (
 		<SocketProvider>
-			<div className="grid grid-cols-5 w-full max-w-screen">
-				<div className="col-start-1 col-span-1">
+			<div className="flex flex-row w-full max-w-screen">
+				<div className="flex-1 max-w-[350px] w-full">
 					<ConversationsClient initialItems={conversations} />
 				</div>
-				<div className="col-start-2 col-span-4">{children}</div>
+				<div className="flex-1">{children}</div>
 			</div>
 		</SocketProvider>
 	);
