@@ -61,29 +61,36 @@ export default function ConversationsClient({ initialItems = [] }) {
 		return () => socket.off("connect", onConnect);
 	}, [socket, items]);
 
-	// live updates
-	useEffect(() => {
-		if (!socket) return;
+        // live updates
+        useEffect(() => {
+                if (!socket) return;
 
-		const onNewConversation = ({ conversation }) => {
-			if (!conversation?.id) return;
-			setItems((prev) => {
-				if (prev.some((c) => c.id === conversation.id)) return prev;
-				return [conversation, ...prev];
-			});
+                const extractConversation = (payload) => {
+                        if (!payload) return null;
+                        if (payload.conversation) return payload.conversation;
+                        if (payload.room) return payload.room;
+                        return payload;
+                };
 
-			// NEW: immediately join the newly created conversation room
-			if (conversation?.id) {
-				const joined = joinedRef.current;
-				if (!joined.has(conversation.id)) {
-					socket.emit("conversation:join", { conversationId: conversation.id });
-					joined.add(conversation.id);
-				}
-			}
-		};
+                const onNewConversation = (payload) => {
+                        const conversation = extractConversation(payload);
+                        if (!conversation?.id) return;
 
-		const onNewMessage = ({ message }) => {
-			if (!message?.conversationId) return;
+                        setItems((prev) => {
+                                if (prev.some((c) => c.id === conversation.id)) return prev;
+                                return [conversation, ...prev];
+                        });
+
+                        // NEW: immediately join the newly created conversation room
+                        const joined = joinedRef.current;
+                        if (!joined.has(conversation.id)) {
+                                socket.emit("conversation:join", { conversationId: conversation.id });
+                                joined.add(conversation.id);
+                        }
+                };
+
+                const onNewMessage = ({ message }) => {
+                        if (!message?.conversationId) return;
 
 			setItems((prev) => {
 				const idx = prev.findIndex((c) => c.id === message.conversationId);
@@ -117,13 +124,23 @@ export default function ConversationsClient({ initialItems = [] }) {
 			});
 		};
 
-		socket.on("conversation:new", onNewConversation);
-		socket.on("message:new", onNewMessage);
-		return () => {
-			socket.off("conversation:new", onNewConversation);
-			socket.off("message:new", onNewMessage);
-		};
-	}, [socket, viewerId, routeId, routeKind]);
+                const conversationEvents = [
+                        "conversation:new",
+                        "conversation:room:new",
+                        "room:new",
+                ];
+
+                conversationEvents.forEach((event) =>
+                        socket.on(event, onNewConversation)
+                );
+                socket.on("message:new", onNewMessage);
+                return () => {
+                        conversationEvents.forEach((event) =>
+                                socket.off(event, onNewConversation)
+                        );
+                        socket.off("message:new", onNewMessage);
+                };
+        }, [socket, viewerId, routeId, routeKind]);
 
 	// zero local unread when viewing that conversation
 	useEffect(() => {
