@@ -81,6 +81,8 @@ export default function SocketProvider({ children }) {
 		};
 	}, []);
 
+	
+
 	const value = useMemo(() => socket, [socket]);
 	return (
 		<SocketContext.Provider value={value}>{children}</SocketContext.Provider>

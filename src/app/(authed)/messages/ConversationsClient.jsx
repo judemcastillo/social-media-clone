@@ -5,10 +5,14 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/Avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSocket } from "@/components/chat/useSocket";
 import { useUser } from "@/components/providers/user-context";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { UserRoundPlus } from "lucide-react";
+import GroupChatDialog from "@/components/chat/GroupChatDialog";
 
 function getLastActivityTimestamp(conversation) {
 	const lastMessageAt = conversation?.messages?.[0]?.createdAt;
@@ -30,11 +34,18 @@ function sortConversationsByActivity(list = []) {
 	);
 }
 
-export default function ConversationsClient({ initialItems = [] }) {
+export default function ConversationsClient({
+	initialItems = [],
+	initialMembers = [],
+	nextCursor = null,
+}) {
 	const viewer = useUser();
 	const viewerId = viewer?.id ?? null;
 	const socket = useSocket();
 	const pathname = usePathname();
+	const router = useRouter();
+
+	const [isDialogOpen, setDialogOpen] = useState(false);
 
 	const { routeId, routeKind } = useMemo(() => {
 		if (!pathname) return { routeId: "", routeKind: "dm" };
@@ -58,6 +69,7 @@ export default function ConversationsClient({ initialItems = [] }) {
 		() => items.reduce((sum, c) => sum + (c.unreadCount || 0), 0),
 		[items]
 	);
+	const [onlineUsers, setOnlineUsers] = useState([]);
 
 	const [q, setQ] = useState("");
 	const [tab, setTab] = useState("All");
@@ -77,7 +89,6 @@ export default function ConversationsClient({ initialItems = [] }) {
 			if (!id || joined.has(id)) return;
 			socket.emit("conversation:join", { conversationId: id });
 			joined.add(id);
-			console.log("joined room", id);
 		};
 
 		items.forEach((c) => joinOnce(c.id));
@@ -199,6 +210,14 @@ export default function ConversationsClient({ initialItems = [] }) {
 		);
 	}, [routeId, routeKind, viewerId]);
 
+	useEffect(() => {
+		if (!socket) return;
+		socket.emit("addNewUser", viewerId);
+		socket.on("getOnlineUsers", (res) => {
+			setOnlineUsers(res);
+		});
+	}, [socket]);
+
 	// helper for DM title
 	function getPeerAndTitle(c) {
 		const peers = (c.participants || []).map((p) => p.user).filter(Boolean);
@@ -240,10 +259,48 @@ export default function ConversationsClient({ initialItems = [] }) {
 		return items.filter((c) => bySearch(c) && byTab(c));
 	}, [items, q, tab]);
 
+	const handleGroupCreated = useCallback(
+		(conversation) => {
+			if (!conversation?.id) return;
+			setItems((prev) => {
+				const exists = prev.some((c) => c.id === conversation.id);
+				const merged = exists
+					? prev.map((c) =>
+							c.id === conversation.id ? { ...c, ...conversation } : c
+					  )
+					: [conversation, ...prev];
+				return sortConversationsByActivity(merged);
+			});
+			setDialogOpen(false);
+			router.push(`/messages/${conversation.id}/group`);
+		},
+		[router]
+	);
+
 	return (
 		<main className="max-w-[700px] w-full h-[93vh]">
 			<Card className="rounded-none h-full">
-				<h1 className="text-xl font-semibold m-2">Messages</h1>
+				<div className="flex flex-row items-center justify-between px-2">
+					<h1 className="text-xl font-semibold ">Messages</h1>
+					<Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
+						<DialogTrigger asChild>
+							<Button
+								className="rounded-full p-0 cursor-pointer bg-muted h-10 w-10 shadow-2xl hover:bg-accent-foreground"
+								variant="icon"
+								onClick={() => setDialogOpen(true)}
+							>
+								<UserRoundPlus className="size-5 p-0" />
+							</Button>
+						</DialogTrigger>
+						<DialogContent className="space-y-4 sm:max-w-lg">
+							<GroupChatDialog
+								initialMembers={initialMembers}
+								nextCursor={nextCursor}
+								onCreated={handleGroupCreated}
+							/>
+						</DialogContent>
+					</Dialog>
+				</div>
 
 				<div className="px-2 pb-2">
 					<input
@@ -293,6 +350,9 @@ export default function ConversationsClient({ initialItems = [] }) {
 							c.isPublic || c.isGroup
 								? routeId === c.id
 								: peerForDM?.id && routeId === peerForDM.id;
+						const onlineStatus = onlineUsers.some(
+							(user) => user.userId === peerForDM.id
+						);
 
 						return (
 							<Card
@@ -302,10 +362,14 @@ export default function ConversationsClient({ initialItems = [] }) {
 								}`}
 							>
 								<div className="flex items-center gap-3">
-									<Avatar src={peerForDM?.image} size={36} />
+									<Avatar
+										src={peerForDM?.image}
+										size={36}
+										isOnline={onlineStatus}
+									/>
 									<div className="text-sm">
 										<Link href={href}>
-											<div className="font-medium hover:underline">{title}</div>
+											<div className="font-medium hover:underline max-w-[200px] overflow-ellipsis">{title}</div>
 										</Link>
 										{last ? (
 											<div

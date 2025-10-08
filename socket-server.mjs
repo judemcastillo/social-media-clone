@@ -79,12 +79,20 @@ io.use(async (socket, next) => {
 	}
 });
 
+let onlineUsers = [];
 io.on("connection", (socket) => {
 	const userId = socket.data.userId;
 
 	// user presence room
 	socket.join(`user:${userId}`);
 	io.to(`user:${userId}`).emit("presence:online", { userId });
+
+	socket.on("addNewUser", (userId) => {
+		!onlineUsers.some((user) => user.userId === userId) &&
+			onlineUsers.push({ userId, socketId: socket.id });
+
+		io.emit("getOnlineUsers", onlineUsers);
+	});
 
 	// ---- JOIN A CONVERSATION ROOM ----
 	socket.on("conversation:join", async ({ conversationId }) => {
@@ -104,6 +112,7 @@ io.on("connection", (socket) => {
 		);
 		if (!conv.isPublic && !isMember) return;
 		socket.join(`c:${conversationId}`);
+
 		socket.emit("conversation:joined", { conversationId });
 	});
 
@@ -261,6 +270,8 @@ io.on("connection", (socket) => {
 
 	// ---- DISCONNECT ----
 	socket.on("disconnect", () => {
+		onlineUsers = onlineUsers.filter((user) => user.socketId !== socket.id);
+		io.emit("getOnlineUsers", onlineUsers);
 		io.emit("presence:offline", { userId });
 	});
 

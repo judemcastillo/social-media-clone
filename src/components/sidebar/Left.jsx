@@ -64,8 +64,10 @@ export default function SidebarProfile() {
 							/>
 						)}
 					</div>
-					<div className="row-start-2 col-start-1 z-10 col-span-3 row-end-4 row-span-2 bg-card rounded-full m-auto border-5 border-card overflow-visible">
-						<Avatar src={avatar} size={90} />
+					<div className="row-start-2 col-start-1 z-10 col-span-3 row-end-4 row-span-2 bg-card rounded-full border-5 border-card flex self-center justify-self-center">
+						<div >
+							<Avatar src={avatar} size={90} />
+						</div>
 					</div>
 				</div>
 

@@ -11,7 +11,7 @@ import {
 import { uploadToSupabase } from "@/lib/supabase-upload";
 import { Button } from "@/components/ui/button";
 import { CirclePlus, Send } from "lucide-react";
-import { ScrollArea } from "@radix-ui/react-scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUser } from "@/components/providers/user-context";
 
 function relativeTime(ts) {
@@ -31,6 +31,8 @@ function relativeTime(ts) {
 
 export default function ChatRoom({
 	conversationId,
+	kind = "dm",
+	requestId = null,
 	initialMessages = [],
 	initialCursor = null,
 	peers,
@@ -123,22 +125,32 @@ export default function ChatRoom({
 	const loadMore = () => {
 		if (!cursor) return;
 		startMore(async () => {
-			const res = await fetchMessagesPage({
-				conversationId,
-				cursor,
-				limit: 30,
-			});
-			// prepend older, but dedupe against seen
-			setItems((prev) => {
-				const uniques = (res.messages || []).filter((m) => {
-					if (!m?.id) return true;
-					if (seenIdsRef.current.has(m.id)) return false;
-					seenIdsRef.current.add(m.id);
-					return true;
+			const idForFetch =
+				kind === "dm"
+					? requestId || peers?.find((p) => p?.id)?.id || peers?.[0]?.id
+					: conversationId;
+			if (!idForFetch) return;
+			try {
+				const res = await fetchMessagesPage({
+					id: idForFetch,
+					kind,
+					cursor,
+					limit: 30,
 				});
-				return [...uniques, ...prev];
-			});
-			setCursor(res.nextCursor);
+				if (!res?.ok) return;
+				setItems((prev) => {
+					const uniques = (res.messages || []).filter((m) => {
+						if (!m?.id) return true;
+						if (seenIdsRef.current.has(m.id)) return false;
+						seenIdsRef.current.add(m.id);
+						return true;
+					});
+					return [...uniques, ...prev];
+				});
+				setCursor(res.nextCursor);
+			} catch (err) {
+				console.error("Load older messages failed", err);
+			}
 		});
 	};
 

@@ -8,7 +8,7 @@ export default async function ConversationPage({ params }) {
 	const session = await auth();
 	if (!session?.user?.id) return null;
 
-	const { id } = await params; // other user's id for DM
+	const { id } = params; // other user's id for DM
 	const { ok, conversationId, messages, nextCursor, title, peers } =
 		await fetchMessagesPage({ id, kind: "dm", limit: 30 });
 
@@ -17,6 +17,8 @@ export default async function ConversationPage({ params }) {
 	return (
 		<ChatRoom
 			conversationId={conversationId}
+			kind="dm"
+			requestId={id}
 			initialMessages={messages}
 			initialCursor={nextCursor}
 			title={title}
