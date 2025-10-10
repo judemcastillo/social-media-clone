@@ -211,6 +211,7 @@ export default function Comments({ post, countLikes, countComments }) {
 										alt="avatar"
 										size={30}
 										className="mt-1"
+										userId={c.author?.id}
 									/>
 									<div className="flex-1 ">
 										<div className="bg-muted rounded-md p-2 ">
@@ -272,7 +273,12 @@ export default function Comments({ post, countLikes, countComments }) {
 					>
 						<div className="flex flex-row w-full gap-2">
 							<div className="w-fit">
-								<Avatar src={viewer?.image} alt="avatar" size={40} />
+								<Avatar
+									src={viewer?.image}
+									alt="avatar"
+									size={40}
+									userId={viewer?.id}
+								/>
 							</div>
 							<div className="flex flex-col w-full border-none bg-card rounded-md flex-1 gap-2">
 								<input

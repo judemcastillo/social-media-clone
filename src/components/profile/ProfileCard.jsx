@@ -28,7 +28,7 @@ export default function ProfileCard({ u, canFollow, viewerId, author }) {
 						)}
 					</div>
 					<div className="row-start-2 col-start-1 z-10 col-span-3 row-end-4 row-span-2 bg-card rounded-full m-auto border-5 border-card overflow-visible">
-						<Avatar src={u.image} size={60} />
+						<Avatar src={u.image} size={60} userId={u.id} />
 					</div>
 				</div>
 				<div className="px-5   flex flex-col gap-1 items-center justify-between h-full pb-4 w-full">

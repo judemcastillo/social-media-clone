@@ -159,7 +159,9 @@ export default function ChatRoom({
 			<Card className="p-4 h-full flex flex-col">
 				<CardTitle className="h-12 flex flex-row items-center border-b-1 dark:border-gray-500 pb-3">
 					<span className="flex flex-row gap-2 items-center">
-						{peers && <Avatar src={peers[0]?.image} size={30} />}
+						{peers && (
+							<Avatar src={peers[0]?.image} size={30} userId={peers[0]?.id} />
+						)}
 						{title || "Conversation"}
 					</span>
 				</CardTitle>
@@ -193,7 +195,11 @@ export default function ChatRoom({
 								>
 									{!mine && (
 										<div className="pb-5">
-											<Avatar src={m.author?.image} size={28} />
+											<Avatar
+												src={m.author?.image}
+												size={28}
+												userId={m.author?.id}
+											/>
 										</div>
 									)}
 
@@ -234,7 +240,11 @@ export default function ChatRoom({
 
 									{mine && (
 										<div className="pb-5">
-											<Avatar src={viewer?.image} size={28} />
+											<Avatar
+												src={viewer?.image}
+												size={28}
+												userId={viewer?.id}
+											/>
 										</div>
 									)}
 								</div>

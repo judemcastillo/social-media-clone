@@ -99,7 +99,7 @@ export default function EditPost({ postId }) {
 	return (
 		<Card className="p-4  m-6 flex flex-col">
 			<div className="flex flex-row text-sm gap-3">
-				<Avatar src={viewer?.image} size={40} />
+				<Avatar src={viewer?.image} size={40} userId={viewer?.id} />
 				<span className="flex flex-col">
 					{viewer?.name || viewer?.email}
 					<span className="text-gray-500 text-xs">Public</span>

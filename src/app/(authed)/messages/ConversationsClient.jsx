@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/Avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSocket } from "@/components/chat/useSocket";
+import { useOnlineUsers, useSocket } from "@/components/chat/useSocket";
 import { useUser } from "@/components/providers/user-context";
 import { usePathname, useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -69,7 +69,7 @@ export default function ConversationsClient({
 		() => items.reduce((sum, c) => sum + (c.unreadCount || 0), 0),
 		[items]
 	);
-	const [onlineUsers, setOnlineUsers] = useState([]);
+	const onlineUsers = useOnlineUsers();
 
 	const [q, setQ] = useState("");
 	const [tab, setTab] = useState("All");
@@ -209,14 +209,6 @@ export default function ConversationsClient({
 			})
 		);
 	}, [routeId, routeKind, viewerId]);
-
-	useEffect(() => {
-		if (!socket) return;
-		socket.emit("addNewUser", viewerId);
-		socket.on("getOnlineUsers", (res) => {
-			setOnlineUsers(res);
-		});
-	}, [socket]);
 
 	// helper for DM title
 	function getPeerAndTitle(c) {
@@ -365,11 +357,14 @@ export default function ConversationsClient({
 									<Avatar
 										src={peerForDM?.image}
 										size={36}
+										userId={peerForDM.id}
 										isOnline={onlineStatus}
 									/>
 									<div className="text-sm">
 										<Link href={href}>
-											<div className="font-medium hover:underline max-w-[200px] overflow-ellipsis">{title}</div>
+											<div className="font-medium hover:underline max-w-[200px] overflow-ellipsis">
+												{title}
+											</div>
 										</Link>
 										{last ? (
 											<div

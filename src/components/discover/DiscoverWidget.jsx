@@ -43,7 +43,7 @@ export default function DiscoverWidget({
 					return (
 						<HoverCard key={u.id}>
 							<HoverCardTrigger className="m-auto cursor-pointer">
-								<Avatar src={u.image} size={50} />
+								<Avatar src={u.image} size={50} userId={u.id} />
 							</HoverCardTrigger>
 							<HoverCardContent className="p-0 m-0 border-none rounded-xl">
 								<ProfileCard u={u} canFollow={canFollow} viewerId={viewerId} />

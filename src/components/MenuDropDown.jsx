@@ -16,7 +16,7 @@ export default function MenuDropDown() {
 	return (
 		<DropdownMenu className="focus:outline-none focus:ring-0 focus:border-transparent">
 			<DropdownMenuTrigger className="focus:outline-none focus:ring-0 focus:border-transparent cursor-pointer">
-				<Avatar src={user.image} size={40} />
+				<Avatar src={user?.image} size={40} userId={user?.id} />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
 				<DropdownMenuItem>

@@ -81,7 +81,12 @@ export default function PostForm({ onCreated }) {
 		<Card className="w-full p-5 shadow-lg max-w-[700px] pb-3">
 			<CardHeader className="p-0">
 				<CardTitle className="p-0 flex items-center gap-3">
-					<Avatar src={user?.image} alt="Profile Picture" size={45} />
+					<Avatar
+						src={user?.image}
+						alt="Profile Picture"
+						size={45}
+						userId={user?.id}
+					/>
 					<div className="flex flex-col text-md gap-1">
 						<span>{user?.name}</span>
 						<span className="text-[12px] font-extralight">Public</span>

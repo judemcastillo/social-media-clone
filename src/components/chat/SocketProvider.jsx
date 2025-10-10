@@ -10,6 +10,7 @@ import React, {
 	useState,
 } from "react";
 import { io } from "socket.io-client";
+import { useUser } from "@/components/providers/user-context";
 
 const SOCKET_URL =
 	process.env.NEXT_PUBLIC_SOCKET_URL ||
@@ -19,11 +20,14 @@ const SOCKET_URL =
 		  }`
 		: "");
 
-const SocketContext = createContext(null);
+const SocketContext = createContext({ socket: null, onlineUsers: [] });
 
 export default function SocketProvider({ children }) {
 	const [socket, setSocket] = useState(null);
+	const [onlineUsers, setOnlineUsers] = useState([]);
 	const createdRef = useRef(false);
+	const viewer = useUser();
+	const viewerId = viewer?.id;
 
 	useEffect(() => {
 		if (createdRef.current) return;
@@ -81,14 +85,48 @@ export default function SocketProvider({ children }) {
 		};
 	}, []);
 
-	
+	useEffect(() => {
+		if (!socket || !viewerId) return;
 
-	const value = useMemo(() => socket, [socket]);
-	return (
-		<SocketContext.Provider value={value}>{children}</SocketContext.Provider>
+		const announceOnline = () => socket.emit("addNewUser", viewerId);
+
+		announceOnline();
+		socket.on("connect", announceOnline);
+		return () => {
+			socket.off("connect", announceOnline);
+		};
+	}, [socket, viewerId]);
+
+	useEffect(() => {
+		if (!socket) return;
+		const handleOnlineUsers = (list) => {
+			setOnlineUsers(Array.isArray(list) ? list : []);
+		};
+		const handleDisconnect = () => setOnlineUsers([]);
+
+		socket.on("getOnlineUsers", handleOnlineUsers);
+		socket.on("disconnect", handleDisconnect);
+
+		return () => {
+			socket.off("getOnlineUsers", handleOnlineUsers);
+			socket.off("disconnect", handleDisconnect);
+		};
+	}, [socket]);
+
+	const value = useMemo(
+		() => ({ socket, onlineUsers }),
+		[socket, onlineUsers]
 	);
+
+	return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
 }
 
 export function useSocket() {
-	return useContext(SocketContext);
+	const ctx = useContext(SocketContext);
+	return ctx?.socket ?? null;
+}
+
+export function useOnlineUsers() {
+	const ctx = useContext(SocketContext);
+	return ctx?.onlineUsers ?? [];
 }

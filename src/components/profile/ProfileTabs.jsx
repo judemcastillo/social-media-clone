@@ -37,7 +37,7 @@ function UsersList({ items = [], session, onLoadMore, loading, hasMore }) {
 							className="flex items-center justify-between shadow-lg  p-3 flex-row w-full"
 						>
 							<div className="flex items-center gap-3">
-								<Avatar src={u.image} size={35} />
+								<Avatar src={u.image} size={35} userId={u.id} />
 								<div>
 									<Link
 										href={`/user/${u.id}`}

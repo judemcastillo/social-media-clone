@@ -1,5 +1,6 @@
 import { dicebearAvatar } from "@/lib/avatar";
 import Image from "next/image";
+import { useOnlineUsers } from "./chat/useSocket";
 
 function normalizeAvatar(url, size = 256) {
 	try {
@@ -23,11 +24,15 @@ export function Avatar({
 	alt,
 	size = 24,
 	className = "",
-	isOnline = false,
-	dotSize = 10,
+	dotSize = 3.5,
+	userId = "",
+	// isOnline = false,
 }) {
 	const safeSrc = normalizeAvatar(src, size * 4); // request a larger PNG; Next will downscale
-	const finalSize = Math.floor(size);
+	const onlineUsers = useOnlineUsers();
+	const isOnline = onlineUsers.some(
+		(u) => (u?.userId ?? u?.id ?? "") === userId
+	);
 	return (
 		<div
 			className={`grid grid-cols-1 rounded-full grid-rows-1 size-${
@@ -45,9 +50,13 @@ export function Avatar({
 				unoptimized
 				loading="lazy"
 			/>
-			<div
-				className={`absolute size-[${dotSize}px] rounded-full border-2 border-background col-span-1 row-span-1 row-start-1 z-10 col-start-1 top-[4%] ${isOnline ? "bg-green-400" : "bg-gray-400"}`}
-			></div>
+			{userId && (
+				<div
+					className={`absolute size-${dotSize} rounded-full border-2 border-background col-span-1 row-span-1 row-start-1 z-10 col-start-1 top-[4%] ${
+						isOnline ? "bg-green-400" : "bg-gray-400"
+					}`}
+				></div>
+			)}
 		</div>
 	);
 }

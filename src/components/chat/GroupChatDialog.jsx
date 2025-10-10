@@ -231,7 +231,12 @@ export default function GroupChatDialog({
 									className="p-2 text-sm flex flex-row justify-between items-center rounded-none"
 								>
 									<div className="flex flex-row items-center gap-2">
-										<Avatar src={user.image} size={30} dotSize={3} />
+										<Avatar
+											src={user.image}
+											size={30}
+											dotSize={3}
+											userId={user.id}
+										/>
 										<div>{user.name}</div>
 									</div>
 									<button
@@ -303,7 +308,12 @@ export default function GroupChatDialog({
 									className="p-2 text-sm flex flex-row justify-between items-center rounded-none"
 								>
 									<div className="flex flex-row items-center gap-2">
-										<Avatar src={user.image} size={30} dotSize={3} />
+										<Avatar
+											src={user.image}
+											size={30}
+											dotSize={3}
+											userId={user.id}
+										/>
 										<div>{user.name}</div>
 									</div>
 									<button

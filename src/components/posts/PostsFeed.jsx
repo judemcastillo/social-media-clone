@@ -44,6 +44,7 @@ export default function PostsFeed({
 									src={p.author.image}
 									alt={p.author.name || p.author.email}
 									size={35}
+									userId={p.author.id}
 								/>
 								<div className="flex flex-col">
 									<HoverCard>
