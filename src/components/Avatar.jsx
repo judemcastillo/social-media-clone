@@ -1,3 +1,5 @@
+"use client";
+
 import { dicebearAvatar } from "@/lib/avatar";
 import Image from "next/image";
 import { useOnlineUsers } from "./chat/useSocket";

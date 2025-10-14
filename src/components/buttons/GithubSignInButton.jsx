@@ -1,7 +1,17 @@
 "use client";
 import { signIn } from "next-auth/react";
 import { Button } from "../ui/button";
+import { FaGithub } from "react-icons/fa";
 
 export function GithubSignInButton() {
-	return <Button className="bg-gray-500 hover:bg-gray-900 text-white w-full" onClick={() => signIn("github")}>Sign in with GitHub</Button>;
+	return (
+		<Button
+			className="w-full flex flex-row items-center justify-center gap-2 cursor-pointer"
+			variant="secondary"
+			onClick={() => signIn("github")}
+		>
+			Sign in with GitHub
+			<FaGithub />
+		</Button>
+	);
 }

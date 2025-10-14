@@ -17,7 +17,9 @@ export default async function Header() {
 	return (
 		<Card className="grid grid-cols-3 h-[7vh]  rounded-none w-full p-0">
 			<div className="flex flex-row items-center gap-2 px-5">
-				<div className="font-semibold">Logo</div>
+				<Link href="/" className="cursor-pointer">
+					<img src="/Logo.svg" alt="Logo" className="h-8" />
+				</Link>
 				<HeaderSearch />
 			</div>
 
@@ -27,14 +29,14 @@ export default async function Header() {
 			</div>
 
 			<div className="flex flex-row items-center gap-4 justify-end px-6">
-				<Link href="/messages" className="relative">
+				{/* <Link href="/messages" className="relative">
 					<Mail className="size-5" />
 					{unread > 0 && (
 						<span className="absolute -top-2 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">
 							{unread > 99 ? "99+" : unread}
 						</span>
 					)}
-				</Link>
+				</Link> */}
 				<ModeToggle />
 				{session?.user && <MenuDropDown />}
 			</div>

@@ -12,6 +12,9 @@ export default async function middleware(request) {
 	if (pathname === "/" && session?.user) {
 		return NextResponse.redirect(new URL("/home", request.url));
 	}
+	if (pathname === "/register" && session?.user) {
+		return NextResponse.redirect(new URL("/home", request.url));
+	}
 
 	// Block unauthenticated access to protected routes
 	const isProtectedRoute = protectedRoutes.some((route) =>
@@ -32,5 +35,6 @@ export const config = {
 		"/messages/:path*", // protected
 		"/user/:path*", // protected (covers /user/[id], /user/[id]/edit, etc.)
 		"/post/:path*", // protected (covers /post/[id], /post/[id]/edit, etc.)
+		"/register/:path*", // public
 	],
 };
