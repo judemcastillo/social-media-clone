@@ -17,7 +17,16 @@ export default async function RoomConversationPage({ params }) {
 
 	if (!result?.ok) return null;
 
-	const { conversationId, messages, nextCursor, title, peers } = result;
+	const {
+		conversationId,
+		messages,
+		nextCursor,
+		title,
+		peers,
+		participants,
+		viewerRole,
+		viewerStatus,
+	} = result;
 
 	return (
 		<ChatRoom
@@ -28,6 +37,9 @@ export default async function RoomConversationPage({ params }) {
 			initialCursor={nextCursor}
 			title={title}
 			peers={peers}
+			participants={participants}
+			viewerRole={viewerRole}
+			viewerStatus={viewerStatus}
 		/>
 	);
 }

@@ -3,7 +3,7 @@
 
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
-import { requireNonGuest } from "./_auth-guards";
+import { formatGroupTitle } from "@/lib/chat-title";
 
 function requireUserId(session) {
 	const id = session?.user?.id;
@@ -11,6 +11,69 @@ function requireUserId(session) {
 	const role = session?.user?.role || "USER";
 	if (role === "GUEST") throw new Error("Guests cannot use chat");
 	return id;
+}
+
+async function getParticipantList(conversationId) {
+	const rows = await prisma.conversationParticipant.findMany({
+		where: {
+			conversationId,
+			status: { not: "LEFT" },
+		},
+		orderBy: { joinedAt: "asc" },
+		select: {
+			role: true,
+			status: true,
+			joinedAt: true,
+			user: {
+				select: {
+					id: true,
+					name: true,
+					email: true,
+					image: true,
+				},
+			},
+		},
+	});
+
+	return rows
+		.map((p) => ({
+			role: p.role,
+			status: p.status,
+			joinedAt: p.joinedAt,
+			user: p.user,
+		}))
+		.filter((p) => p.user);
+}
+
+async function assertGroupAdmin(conversationId, viewerId) {
+	const conv = await prisma.conversation.findUnique({
+		where: { id: conversationId },
+		select: {
+			id: true,
+			isGroup: true,
+			isPublic: true,
+			participants: {
+				where: { userId: viewerId },
+				select: {
+					userId: true,
+					role: true,
+					status: true,
+				},
+			},
+		},
+	});
+
+	if (!conv || !conv.isGroup || conv.isPublic) {
+		throw new Error("Not a private group.");
+	}
+	const participant = conv.participants[0];
+	if (!participant || participant.status === "LEFT") {
+		throw new Error("Not a member.");
+	}
+	if (participant.role !== "ADMIN") {
+		throw new Error("Admin only.");
+	}
+	return conv;
 }
 
 export async function getOrCreateDM(viewerId, otherUserId) {
@@ -212,7 +275,9 @@ export async function fetchMessagesPage({
 	const take = Math.min(Number(limit) || 30, 100);
 
 	let conv = null;
-	let peers = null;
+	let peers = [];
+	let membership = null;
+	let participants = [];
 
 	if (kind === "group") {
 		conv = await prisma.conversation.findUnique({
@@ -223,12 +288,32 @@ export async function fetchMessagesPage({
 				isPublic: true,
 				isGroup: true,
 				participants: {
-					select: { user: { select: { id: true, name: true, image: true } } },
+					where: { status: { not: "LEFT" } },
+					select: {
+						role: true,
+						status: true,
+						joinedAt: true,
+						user: {
+							select: { id: true, name: true, image: true, email: true },
+						},
+					},
 				},
 			},
 		});
-		peers = (conv.participants || []).map((p) => p.user).filter(Boolean);
 		if (!conv || !conv.isGroup) return { ok: false, error: "Not a group." };
+		membership = await prisma.conversationParticipant.findUnique({
+			where: { conversationId_userId: { conversationId: id, userId: viewerId } },
+			select: { status: true },
+		});
+		if (!conv.isPublic && !membership) {
+			return { ok: false, error: "Forbidden." };
+		}
+		participants = (conv.participants || []).map((p) => ({
+			user: p.user,
+			role: p.role,
+			status: p.status,
+			joinedAt: p.joinedAt,
+		}));
 	} else if (kind === "room") {
 		conv = await prisma.conversation.findUnique({
 			where: { id },
@@ -238,12 +323,25 @@ export async function fetchMessagesPage({
 				isPublic: true,
 				isGroup: true,
 				participants: {
-					select: { user: { select: { id: true, name: true, image: true } } },
+					where: { status: { not: "LEFT" } },
+					select: {
+						role: true,
+						status: true,
+						joinedAt: true,
+						user: {
+							select: { id: true, name: true, image: true, email: true },
+						},
+					},
 				},
 			},
 		});
-		peers = (conv.participants || []).map((p) => p.user).filter(Boolean);
 		if (!conv || !conv.isPublic) return { ok: false, error: "Not a room." };
+		participants = (conv.participants || []).map((p) => ({
+			user: p.user,
+			role: p.role,
+			status: p.status,
+			joinedAt: p.joinedAt,
+		}));
 	} else {
 		// DM: id is other user's id
 		const otherUserId = id;
@@ -256,36 +354,109 @@ export async function fetchMessagesPage({
 				isPublic: true,
 				isGroup: true,
 				participants: {
-					select: { user: { select: { id: true, name: true, image: true } } },
+					where: { status: { not: "LEFT" } },
+					select: {
+						role: true,
+						status: true,
+						joinedAt: true,
+						user: {
+							select: { id: true, name: true, image: true, email: true },
+						},
+					},
 				},
 			},
 		});
-		const allUsers = (conv?.participants || [])
-			.map((p) => p.user)
-			.filter(Boolean);
+		participants = (conv?.participants || []).map((p) => ({
+			user: p.user,
+			role: p.role,
+			status: p.status,
+			joinedAt: p.joinedAt,
+		}));
+	}
 
-		// for DM, peers = only the other person (exclude viewer)
-		peers = allUsers.filter((u) => u.id !== viewerId);
+	peers = participants.map((p) => p.user).filter(Boolean);
+	if (!conv.isGroup && !conv.isPublic) {
+		peers = peers.filter((u) => u?.id !== viewerId);
 	}
 
 	let title = conv.title || "";
 	if (!title) {
-		if (conv.isGroup) {
-			title = "Group";
-		} else if (conv.isPublic) {
+		if (conv.isPublic) {
 			title = "Room";
+		} else if (conv.isGroup) {
+			title = formatGroupTitle({
+				participants: peers,
+				viewerId,
+				maxNames: 3,
+				fallback: "Conversation",
+			});
 		} else {
 			const others = peers.filter((u) => u.id !== viewerId);
 			title = others.length ? others[0].name || "User" : "Conversation";
 		}
 	}
 
-	// Messages (cursor by id, newest->oldest then reverse for normal display)
+	if (conv.isGroup && !conv.isPublic) {
+		if (!membership) {
+			membership = await prisma.conversationParticipant.findUnique({
+				where: {
+					conversationId_userId: { conversationId: conv.id, userId: viewerId },
+				},
+				select: { status: true },
+			});
+		}
+		if (!membership) return { ok: false, error: "Forbidden." };
+		if (membership.status !== "JOINED") {
+			await prisma.conversationParticipant.update({
+				where: {
+					conversationId_userId: {
+						conversationId: conv.id,
+						userId: viewerId,
+					},
+				},
+				data: { status: "JOINED" },
+			});
+		}
+	}
+
+	const viewerParticipant =
+		participants.find((p) => p.user?.id === viewerId) || null;
+	if (!membership && viewerParticipant) {
+		membership = { status: viewerParticipant.status };
+	}
+	const viewerRole = viewerParticipant?.role ?? null;
+	const viewerStatus = viewerParticipant?.status ?? null;
+
+	let cursorMessage = null;
+	if (cursor) {
+		cursorMessage = await prisma.message.findUnique({
+			where: { id: cursor },
+			select: { id: true, createdAt: true },
+		});
+		if (!cursorMessage) cursor = null;
+	}
+
+	// Messages (newest -> oldest by createdAt, then reverse for display)
 	const rows = await prisma.message.findMany({
-		where: { conversationId: conv.id },
+		where: {
+			conversationId: conv.id,
+			...(cursorMessage
+				? {
+						OR: [
+							{ createdAt: { lt: cursorMessage.createdAt } },
+							{
+								createdAt: cursorMessage.createdAt,
+								id: { lt: cursorMessage.id },
+							},
+						],
+				  }
+				: {}),
+		},
 		take: take + 1,
-		...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-		orderBy: { id: "desc" },
+		orderBy: [
+			{ createdAt: "desc" },
+			{ id: "desc" },
+		],
 		select: {
 			id: true,
 			conversationId: true,
@@ -298,14 +469,20 @@ export async function fetchMessagesPage({
 		},
 	});
 
-	const nextCursor = rows.length > take ? rows[take].id : null;
-	const messages = rows.slice(0, take).reverse(); // oldest -> newest
+	const hasMore = rows.length > take;
+	const pageRows = rows.slice(0, take);
+	const messages = pageRows.reverse(); // oldest -> newest for UI
+	const nextCursor =
+		hasMore && messages.length ? messages[0]?.id ?? null : null;
 
 	return {
 		ok: true,
 		conversationId: conv.id,
 		title,
 		peers,
+		participants,
+		viewerRole,
+		viewerStatus,
 		messages,
 		nextCursor,
 	};
@@ -374,4 +551,173 @@ export async function markConversationRead({ conversationId }) {
 	});
 
 	return { ok: true, count: unread.length };
+}
+
+export async function addGroupMembers({ conversationId, memberIds = [] }) {
+	const session = await auth();
+	const viewerId = requireUserId(session);
+	if (!conversationId) return { ok: false, error: "Missing conversationId." };
+
+	try {
+		await assertGroupAdmin(conversationId, viewerId);
+	} catch (err) {
+		return { ok: false, error: err?.message || "Forbidden." };
+	}
+
+	const unique = Array.from(
+		new Set(
+			memberIds
+				.filter((id) => id && id !== viewerId)
+				.map((id) => id.trim())
+				.filter(Boolean)
+		)
+	);
+	if (!unique.length) {
+		return { ok: false, error: "Select at least one member." };
+	}
+
+	const users = await prisma.user.findMany({
+		where: { id: { in: unique }, role: { not: "GUEST" } },
+		select: { id: true },
+	});
+	const validIds = users.map((u) => u.id);
+	if (!validIds.length) {
+		return { ok: false, error: "No eligible members to add." };
+	}
+
+	await prisma.$transaction(
+		validIds.map((memberId) =>
+			prisma.conversationParticipant.upsert({
+				where: {
+					conversationId_userId: { conversationId, userId: memberId },
+				},
+				create: {
+					conversationId,
+					userId: memberId,
+					status: "INVITED",
+					role: "MEMBER",
+					invitedById: viewerId,
+				},
+				update: {
+					status: "INVITED",
+					invitedById: viewerId,
+				},
+			})
+		)
+	);
+
+	const participants = await getParticipantList(conversationId);
+	return {
+		ok: true,
+		participants,
+		viewerRole: "ADMIN",
+		viewerStatus: "JOINED",
+	};
+}
+
+export async function removeGroupMember({ conversationId, memberId }) {
+	const session = await auth();
+	const viewerId = requireUserId(session);
+	if (!conversationId || !memberId)
+		return { ok: false, error: "Missing ids." };
+	if (memberId === viewerId)
+		return { ok: false, error: "Use leave group instead." };
+
+	try {
+		await assertGroupAdmin(conversationId, viewerId);
+	} catch (err) {
+		return { ok: false, error: err?.message || "Forbidden." };
+	}
+
+	const target = await prisma.conversationParticipant.findUnique({
+		where: { conversationId_userId: { conversationId, userId: memberId } },
+		select: { role: true, status: true },
+	});
+	if (!target || target.status === "LEFT") {
+		return { ok: false, error: "Member not found." };
+	}
+	if (target.role === "ADMIN") {
+		return { ok: false, error: "Cannot remove another admin." };
+	}
+
+	await prisma.conversationParticipant.update({
+		where: { conversationId_userId: { conversationId, userId: memberId } },
+		data: { status: "LEFT" },
+	});
+
+	const participants = await getParticipantList(conversationId);
+	return {
+		ok: true,
+		participants,
+		viewerRole: "ADMIN",
+		viewerStatus: "JOINED",
+	};
+}
+
+export async function leaveGroup({ conversationId }) {
+	const session = await auth();
+	const viewerId = requireUserId(session);
+	if (!conversationId) return { ok: false, error: "Missing conversationId." };
+
+	const conv = await prisma.conversation.findUnique({
+		where: { id: conversationId },
+		select: {
+			id: true,
+			isGroup: true,
+			isPublic: true,
+			participants: {
+				select: {
+					userId: true,
+					role: true,
+					status: true,
+					joinedAt: true,
+				},
+			},
+		},
+	});
+	if (!conv || !conv.isGroup || conv.isPublic) {
+		return { ok: false, error: "Not a private group." };
+	}
+
+	const viewerParticipant = conv.participants.find(
+		(p) => p.userId === viewerId
+	);
+	if (!viewerParticipant || viewerParticipant.status === "LEFT") {
+		return { ok: false, error: "Not a member." };
+	}
+
+	const joinedOthers = conv.participants.filter(
+		(p) => p.userId !== viewerId && p.status === "JOINED"
+	);
+	const otherAdmins = joinedOthers.filter((p) => p.role === "ADMIN");
+
+	await prisma.$transaction(async (tx) => {
+		if (
+			viewerParticipant.role === "ADMIN" &&
+			otherAdmins.length === 0 &&
+			joinedOthers.length > 0
+		) {
+			const promote = joinedOthers.sort(
+				(a, b) => a.joinedAt.getTime() - b.joinedAt.getTime()
+			)[0];
+			await tx.conversationParticipant.update({
+				where: {
+					conversationId_userId: {
+						conversationId,
+						userId: promote.userId,
+					},
+				},
+				data: { role: "ADMIN" },
+			});
+		}
+
+		await tx.conversationParticipant.update({
+			where: {
+				conversationId_userId: { conversationId, userId: viewerId },
+			},
+			data: { status: "LEFT" },
+		});
+	});
+
+	return { ok: true };
 }

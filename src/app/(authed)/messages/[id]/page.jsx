@@ -9,7 +9,17 @@ export default async function ConversationPage({ params }) {
 	if (!session?.user?.id) return null;
 
 	const { id } = await params; // other user's id for DM
-	const { ok, conversationId, messages, nextCursor, title, peers } =
+	const {
+		ok,
+		conversationId,
+		messages,
+		nextCursor,
+		title,
+		peers,
+		participants,
+		viewerRole,
+		viewerStatus,
+	} =
 		await fetchMessagesPage({ id, kind: "dm", limit: 30 });
 
 	if (!ok) return null;
@@ -23,6 +33,9 @@ export default async function ConversationPage({ params }) {
 			initialCursor={nextCursor}
 			title={title}
 			peers={peers}
+			participants={participants}
+			viewerRole={viewerRole}
+			viewerStatus={viewerStatus}
 		/>
 	);
 }

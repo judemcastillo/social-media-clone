@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { UserRoundPlus } from "lucide-react";
 import GroupChatDialog from "@/components/chat/GroupChatDialog";
+import { formatGroupTitle } from "@/lib/chat-title";
 
 function getLastActivityTimestamp(conversation) {
 	const lastMessageAt = conversation?.messages?.[0]?.createdAt;
@@ -216,13 +217,28 @@ export default function ConversationsClient({
 		const peerForDM =
 			peers.find((u) => u?.id && u.id !== viewerId) || peers[0] || null;
 
-		const title =
-			c.isGroup || c.isPublic
-				? c.title ||
-				  (peers.length
-						? peers.map((u) => u?.name || "User").join(", ")
-						: "Conversation")
-				: peerForDM?.name || "User";
+		let title;
+		if (c.isPublic) {
+			title =
+				c.title ||
+				formatGroupTitle({
+					participants: peers,
+					viewerId,
+					maxNames: 3,
+					fallback: "Room",
+				});
+		} else if (c.isGroup) {
+			title =
+				c.title ||
+				formatGroupTitle({
+					participants: peers,
+					viewerId,
+					maxNames: 3,
+					fallback: "Conversation",
+				});
+		} else {
+			title = peerForDM?.name || "User";
+		}
 
 		return { peers, peerForDM, title };
 	}
