@@ -7,6 +7,7 @@
 		"build": "next build --turbopack",
 		"start": "next start",
 		"lint": "eslint",
+		"seed": "prisma db seed",
 		"backfill:avatars": "node scripts/backfill-avatars.mjs",
 		"avatars:convert": "node scripts/convert-avatars-to-png.js",
 		"socket-test": "node --experimental-modules scripts/socket-test.mjs"

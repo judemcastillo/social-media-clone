@@ -1,10 +1,8 @@
 "use server";
 
 import { auth } from "@/auth";
-import { SignIn } from "@/components/buttons/GithubSignInButton";
 import { SignOutButton } from "@/components/buttons/SignOutButton";
 import LoginForm from "@/components/auth/LoginForm";
-import RegisterForm from "@/components/auth/RegisterForm";
 
 export default async function Login() {
 	const session = await auth();
@@ -18,12 +16,10 @@ export default async function Login() {
 	}
 	return (
 		<main className="flex min-h-screen flex-row items-center  justify-center bg-accent-foreground max-w-screen w-full">
-
-			<div className="w-full m-auto flex-2 hidden lg:flex items-center justify-center h-full">
+			<div className="w-full m-auto flex-2 hidden lg:flex items-center justify-center h-full ">
 				<img src="/Banner.png" alt="Logo" className="h-screen object-contain" />
 			</div>
 			<LoginForm />
-			{/* <RegisterForm/> */}
 		</main>
 	);
 }

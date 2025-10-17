@@ -65,9 +65,9 @@ export default function ProfileCard({ u, canFollow, viewerId, author }) {
 								<Link href={`/messages/${u.id}`}>
 									<Button
 										variant="default"
-										className="rounded-full p-1 cursor-pointer text-xs size-8"
+										className="rounded-xl p-1 cursor-pointer text-xs "
 									>
-										<MessageCirclePlusIcon />
+										Message <MessageCirclePlusIcon />
 									</Button>
 								</Link>
 								<FollowButton

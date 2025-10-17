@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 
-const protectedRoutes = ["/discover", "/home", "/messages", "/user", "/post"];
+const protectedRoutes = ["/discover", "/home", "/messages", "/user", "/post","/search"];
 
 export default async function middleware(request) {
 	const session = await auth();
@@ -36,5 +36,6 @@ export const config = {
 		"/user/:path*", // protected (covers /user/[id], /user/[id]/edit, etc.)
 		"/post/:path*", // protected (covers /post/[id], /post/[id]/edit, etc.)
 		"/register/:path*", // public
+		"/search/:path*", // protected
 	],
 };

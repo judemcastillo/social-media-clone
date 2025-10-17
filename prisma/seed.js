@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   // admin
-  await prisma.user.upsert({
+  const admin = await prisma.user.upsert({
     where: { email: 'admin@test.com' },
     update: { role: 'ADMIN' },
     create: {
@@ -25,6 +25,33 @@ async function main() {
   }));
 
   await prisma.user.createMany({ data: users, skipDuplicates: true });
+
+  const roomTitles = ['New Members', 'Yappers4Life', 'Exclusive Yappers'];
+  for (const title of roomTitles) {
+    const existing = await prisma.conversation.findFirst({
+      where: { title, isPublic: true },
+      select: { id: true },
+    });
+    if (existing) continue;
+
+    await prisma.conversation.create({
+      data: {
+        title,
+        isGroup: true,
+        isPublic: true,
+        createdById: admin.id,
+        participants: {
+          create: [
+            {
+              userId: admin.id,
+              role: 'ADMIN',
+              status: 'JOINED',
+            },
+          ],
+        },
+      },
+    });
+  }
 }
 
 main()

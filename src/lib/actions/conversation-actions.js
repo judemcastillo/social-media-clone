@@ -203,6 +203,35 @@ export async function joinPublicRoom(conversationId) {
 	return { ok: true };
 }
 
+export async function leavePublicRoom({ conversationId }) {
+	const session = await auth();
+	const viewerId = requireUserId(session);
+	if (!conversationId) return { ok: false, error: "Missing conversationId." };
+
+	const conv = await prisma.conversation.findUnique({
+		where: { id: conversationId },
+		select: { isPublic: true },
+	});
+	if (!conv?.isPublic) {
+		return { ok: false, error: "Not a public room." };
+	}
+
+	const participant = await prisma.conversationParticipant.findUnique({
+		where: { conversationId_userId: { conversationId, userId: viewerId } },
+		select: { status: true },
+	});
+	if (!participant || participant.status === "LEFT") {
+		return { ok: false, error: "Not a member." };
+	}
+
+	await prisma.conversationParticipant.update({
+		where: { conversationId_userId: { conversationId, userId: viewerId } },
+		data: { status: "LEFT" },
+	});
+
+	return { ok: true };
+}
+
 export async function fetchConversations() {
 	const session = await auth();
 	if (!session?.user?.id) return { conversations: [] };
@@ -262,6 +291,72 @@ export async function fetchConversations() {
 	}));
 
 	return { conversations };
+}
+
+export async function fetchFeaturedRooms() {
+	const session = await auth();
+	if (!session?.user?.id) return { rooms: [] };
+	const viewerId = session.user.id;
+
+	const featuredTitles = ["New Members", "Yappers4Life", "Exclusive Yappers"];
+	const orderMap = new Map(featuredTitles.map((title, index) => [title, index]));
+
+	const rooms = await prisma.conversation.findMany({
+		where: {
+			isPublic: true,
+			title: { in: featuredTitles },
+		},
+		select: {
+			id: true,
+			title: true,
+			createdAt: true,
+			participants: {
+				where: { userId: viewerId },
+				select: { status: true },
+			},
+		},
+	});
+
+	const roomIds = rooms.map((room) => room.id);
+	const memberCounts = roomIds.length
+		? await prisma.conversationParticipant.groupBy({
+				by: ["conversationId"],
+				where: { conversationId: { in: roomIds }, status: "JOINED" },
+				_count: { _all: true },
+		  })
+		: [];
+	const messageCounts = roomIds.length
+		? await prisma.message.groupBy({
+				by: ["conversationId"],
+				where: { conversationId: { in: roomIds } },
+				_count: { _all: true },
+		  })
+		: [];
+
+	const memberMap = new Map(
+		memberCounts.map((entry) => [entry.conversationId, entry._count._all])
+	);
+	const messageMap = new Map(
+		messageCounts.map((entry) => [entry.conversationId, entry._count._all])
+	);
+
+	const sorted = rooms
+		.slice()
+		.sort((a, b) => {
+			const aIdx = orderMap.get(a.title ?? "") ?? Number.MAX_SAFE_INTEGER;
+			const bIdx = orderMap.get(b.title ?? "") ?? Number.MAX_SAFE_INTEGER;
+			return aIdx - bIdx;
+		})
+		.map((room) => ({
+			id: room.id,
+			title: room.title,
+			createdAt: room.createdAt,
+			memberCount: memberMap.get(room.id) ?? 0,
+			messageCount: messageMap.get(room.id) ?? 0,
+			viewerStatus: room.participants?.[0]?.status ?? null,
+		}));
+
+	return { rooms: sorted };
 }
 
 export async function fetchMessagesPage({

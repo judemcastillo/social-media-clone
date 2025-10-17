@@ -7,6 +7,8 @@ import { Avatar } from "@/components/Avatar";
 import {
 	fetchMessagesPage,
 	leaveGroup,
+	leavePublicRoom,
+	joinPublicRoom,
 	markConversationRead,
 } from "@/lib/actions/conversation-actions";
 import { uploadToSupabase } from "@/lib/supabase-upload";
@@ -16,6 +18,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUser } from "@/components/providers/user-context";
 import { useRouter } from "next/navigation";
 import GroupMembersDialog from "@/components/chat/GroupMembersDialog";
+import RoomMembersDialog from "@/components/chat/RoomMembersDialog";
+import { useUnread } from "@/components/providers/unread-context";
 
 function relativeTime(ts) {
 	const t =
@@ -47,21 +51,28 @@ export default function ChatRoom({
 	const viewer = useUser();
 	const socket = useSocket();
 	const router = useRouter();
+	const { setActiveConversation, decrementUnread } = useUnread();
 
 	const [items, setItems] = useState(initialMessages);
 	const [cursor, setCursor] = useState(initialCursor);
 	const [text, setText] = useState("");
 	const [sending, setSending] = useState(false);
 	const [loadingMore, startMore] = useTransition();
-	const [leaving, startLeaving] = useTransition();
+	const [groupLeaving, startGroupLeaving] = useTransition();
+	const [joiningRoom, startJoiningRoom] = useTransition();
+	const [leavingRoom, startLeavingRoom] = useTransition();
 	const [membersOpen, setMembersOpen] = useState(false);
-	const [memberEntries, setMemberEntries] = useState(participants || []);
-	const [displayPeers, setDisplayPeers] = useState(peers || []);
-	const [role, setRole] = useState(viewerRole);
-	const [status, setStatus] = useState(viewerStatus);
-	const [leaveError, setLeaveError] = useState("");
-	const bottomRef = useRef(null);
-	const latestMessageIdRef = useRef(null);
+const [memberEntries, setMemberEntries] = useState(participants || []);
+const [displayPeers, setDisplayPeers] = useState(peers || []);
+const [role, setRole] = useState(viewerRole);
+const [status, setStatus] = useState(viewerStatus);
+const [roomActionError, setRoomActionError] = useState("");
+const bottomRef = useRef(null);
+const latestMessageIdRef = useRef(null);
+
+const isRoom = kind === "room";
+const viewerIsRoomMember = !isRoom || status === "JOINED";
+const viewerCanSend = viewerIsRoomMember;
 
 	// Track joined room + seen message ids to prevent duplicates
 	const joinedRef = useRef(null);
@@ -78,9 +89,29 @@ export default function ChatRoom({
 	};
 
 	useEffect(() => {
+		if (!conversationId) return;
+		setActiveConversation(conversationId);
+		return () => setActiveConversation(null);
+	}, [conversationId, setActiveConversation]);
+
+	useEffect(() => {
 		if (!conversationId || !items.length) return;
-		markConversationRead({ conversationId });
-	}, [conversationId, items.length]);
+		let isMounted = true;
+		(async () => {
+			try {
+				const res = await markConversationRead({ conversationId });
+				if (!isMounted) return;
+				if (res?.ok && res.count) {
+					decrementUnread(res.count);
+				}
+			} catch (err) {
+				console.error("markConversationRead failed", err);
+			}
+		})();
+		return () => {
+			isMounted = false;
+		};
+	}, [conversationId, items.length, decrementUnread]);
 
 	// Join socket room once per conversation + attach a single listener
 	useEffect(() => {
@@ -124,7 +155,7 @@ export default function ChatRoom({
 	}, [items]);
 
 	async function sendMessage({ content, attachments = [] }) {
-		if (!socket) return;
+		if (!socket || !viewerCanSend) return;
 		setSending(true);
 		try {
 			socket.emit("message:send", { conversationId, content, attachments });
@@ -135,6 +166,7 @@ export default function ChatRoom({
 	}
 
 	async function onPickFile(e) {
+		if (!viewerCanSend) return;
 		const file = e.target.files?.[0];
 		if (!file) return;
 		const url = await uploadToSupabase(file, { folder: "chat" });
@@ -145,6 +177,7 @@ export default function ChatRoom({
 	function onEnter(e) {
 		if (e.key === "Enter" && !e.shiftKey) {
 			e.preventDefault();
+			if (!viewerCanSend) return;
 			if (text.trim()) sendMessage({ content: text.trim() });
 		}
 	}
@@ -229,6 +262,74 @@ export default function ChatRoom({
 		[role, status]
 	);
 
+	const handleJoinRoom = useCallback(() => {
+		if (!conversationId) return;
+		setRoomActionError("");
+		startJoiningRoom(async () => {
+			try {
+				const res = await joinPublicRoom(conversationId);
+				if (!res?.ok) {
+					setRoomActionError(res?.error || "Unable to join room.");
+					return;
+				}
+				setStatus("JOINED");
+				setMemberEntries((prev) => {
+					if (!viewer?.id) return prev;
+					const exists = prev.some((m) => m?.user?.id === viewer.id);
+					const entry = {
+						user: {
+							id: viewer.id,
+							name: viewer.name || viewer.email || "You",
+							email: viewer.email || null,
+							image: viewer.image || null,
+						},
+						role: "MEMBER",
+						status: "JOINED",
+						joinedAt: new Date().toISOString(),
+					};
+					return exists
+						? prev.map((m) =>
+								m?.user?.id === viewer.id ? { ...m, status: "JOINED" } : m
+						  )
+						: [...prev, entry];
+				});
+				router.refresh();
+			} catch (err) {
+				console.error("joinPublicRoom failed", err);
+				setRoomActionError("Unable to join room.");
+			}
+		});
+	}, [conversationId, viewer, router, startJoiningRoom]);
+
+	const handleLeaveRoom = useCallback(() => {
+		if (!conversationId) return;
+		if (typeof window !== "undefined") {
+			const confirmed = window.confirm(
+				"Leave this room? You can rejoin anytime from Messages."
+			);
+			if (!confirmed) return;
+		}
+		setRoomActionError("");
+		startLeavingRoom(async () => {
+			try {
+				const res = await leavePublicRoom({ conversationId });
+				if (!res?.ok) {
+					setRoomActionError(res?.error || "Unable to leave room.");
+					return;
+				}
+				setStatus("LEFT");
+				setMemberEntries((prev) =>
+					prev.filter((m) => m?.user?.id !== viewer?.id)
+				);
+				router.push("/messages");
+				router.refresh();
+			} catch (err) {
+				console.error("leavePublicRoom failed", err);
+				setRoomActionError("Unable to leave room.");
+			}
+		});
+	}, [conversationId, viewer?.id, router, startLeavingRoom]);
+
 	const handleLeaveGroup = useCallback(() => {
 		if (!conversationId) return;
 		if (typeof window !== "undefined") {
@@ -237,22 +338,22 @@ export default function ChatRoom({
 			);
 			if (!confirmed) return;
 		}
-		setLeaveError("");
-		startLeaving(async () => {
+		setRoomActionError("");
+		startGroupLeaving(async () => {
 			try {
 				const res = await leaveGroup({ conversationId });
 				if (!res?.ok) {
-					setLeaveError(res?.error || "Unable to leave group.");
+					setRoomActionError(res?.error || "Unable to leave group.");
 					return;
 				}
 				router.push("/messages");
 				router.refresh();
 			} catch (err) {
 				console.error("leaveGroup failed", err);
-				setLeaveError("Unable to leave group.");
+				setRoomActionError("Unable to leave group.");
 			}
 		});
-	}, [conversationId, router, startLeaving]);
+	}, [conversationId, router, startGroupLeaving]);
 
 	return (
 		<main className="p-6 px-5 h-[93vh] w-full overflow-y-auto">
@@ -275,30 +376,64 @@ export default function ChatRoom({
 							)}
 						</div>
 					</span>
-					{kind === "group" ? (
-						<span className="flex items-center gap-2">
-							<Button
-								variant="secondary"
-								className="cursor-pointer text-xs px-3 py-2"
-								onClick={() => setMembersOpen(true)}
-							>
-								Members
-							</Button>
-							<Button
-								variant="ghost"
-								className="cursor-pointer text-xs px-3 py-2 text-red-500 hover:text-red-600"
-								onClick={handleLeaveGroup}
-								disabled={leaving}
-							>
-								Leave Group
-							</Button>
-						</span>
-					) : null}
+		{kind === "group" ? (
+			<span className="flex items-center gap-2">
+				<Button
+					variant="secondary"
+					className="cursor-pointer text-xs px-3 py-2"
+					onClick={() => setMembersOpen(true)}
+				>
+					Members
+				</Button>
+				<Button
+					variant="ghost"
+					className="cursor-pointer text-xs px-3 py-2 text-red-500 hover:text-red-600"
+					onClick={handleLeaveGroup}
+					disabled={groupLeaving}
+				>
+					Leave Group
+				</Button>
+			</span>
+		) : isRoom ? (
+			<span className="flex items-center gap-2">
+				<Button
+					variant="secondary"
+					className="cursor-pointer text-xs px-3 py-2"
+					onClick={() => setMembersOpen(true)}
+				>
+					Members
+				</Button>
+				{viewerIsRoomMember ? (
+					<Button
+						variant="ghost"
+						className="cursor-pointer text-xs px-3 py-2 text-red-500 hover:text-red-600"
+						onClick={handleLeaveRoom}
+						disabled={leavingRoom}
+					>
+						Leave Room
+					</Button>
+				) : (
+					<Button
+						variant="default"
+						className="cursor-pointer text-xs px-3 py-2"
+						onClick={handleJoinRoom}
+						disabled={joiningRoom}
+					>
+						{joiningRoom ? "Joining…" : "Join Room"}
+					</Button>
+				)}
+			</span>
+		) : null}
 				</CardTitle>
 
-				{leaveError ? (
-					<div className="py-2 text-xs text-red-500">{leaveError}</div>
-				) : null}
+		{roomActionError ? (
+			<div className="py-2 text-xs text-red-500">{roomActionError}</div>
+		) : null}
+		{isRoom && !viewerIsRoomMember ? (
+			<div className="py-2 text-xs text-muted-foreground">
+				Join this room to start chatting.
+			</div>
+		) : null}
 
 				<div className="flex-1 overflow-y-auto space-y-3">
 					{cursor && (
@@ -392,29 +527,36 @@ export default function ChatRoom({
 				</div>
 
 				<div className="border-t pt-2 flex items-center gap-2 px-1 dark:border-gray-500">
-					<label className="cursor-pointer">
+					<label
+						className={`cursor-pointer ${viewerCanSend ? "" : "opacity-40 cursor-not-allowed"}`}
+					>
 						<CirclePlus className="text-secondary" />
 						<input
 							type="file"
 							accept="image/*"
 							onChange={onPickFile}
 							className="hidden"
+							disabled={!viewerCanSend || sending}
 						/>
 					</label>
 
 					<textarea
 						className="flex-1 text-sm bg-accent outline-none resize-none p-2 rounded-2xl h-10"
-						placeholder="Type a message…"
+						placeholder={
+							viewerCanSend
+								? "Type a message…"
+								: "Join this room to send messages"
+						}
 						rows={2}
 						value={text}
 						onChange={(e) => setText(e.target.value)}
 						onKeyDown={onEnter}
-						disabled={sending}
+						disabled={sending || !viewerCanSend}
 					/>
 
 					<Button
 						onClick={() => text.trim() && sendMessage({ content: text.trim() })}
-						disabled={sending || !text.trim()}
+						disabled={sending || !viewerCanSend || !text.trim()}
 						className="cursor-pointer rounded-full p-0"
 						variant="default"
 					>
@@ -424,17 +566,25 @@ export default function ChatRoom({
 			</Card>
 
 			{kind === "group" ? (
-				<GroupMembersDialog
-					open={membersOpen}
-					onOpenChange={setMembersOpen}
-					conversationId={conversationId}
-					members={memberEntries}
-					onMembersChange={handleMembersChange}
-					viewerId={viewer?.id ?? null}
-					viewerRole={role}
-					viewerStatus={status}
-				/>
-			) : null}
+		<GroupMembersDialog
+			open={membersOpen}
+			onOpenChange={setMembersOpen}
+			conversationId={conversationId}
+			members={memberEntries}
+			onMembersChange={handleMembersChange}
+			viewerId={viewer?.id ?? null}
+			viewerRole={role}
+			viewerStatus={status}
+		/>
+	) : null}
+	{isRoom ? (
+		<RoomMembersDialog
+			open={membersOpen}
+			onOpenChange={setMembersOpen}
+			members={memberEntries}
+			title={title || "Chat Room Members"}
+		/>
+	) : null}
 		</main>
 	);
 }

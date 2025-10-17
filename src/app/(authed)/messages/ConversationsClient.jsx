@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { UserRoundPlus } from "lucide-react";
 import GroupChatDialog from "@/components/chat/GroupChatDialog";
 import { formatGroupTitle } from "@/lib/chat-title";
+import { useUnread } from "@/components/providers/unread-context";
 
 function getLastActivityTimestamp(conversation) {
 	const lastMessageAt = conversation?.messages?.[0]?.createdAt;
@@ -45,6 +46,7 @@ export default function ConversationsClient({
 	const socket = useSocket();
 	const pathname = usePathname();
 	const router = useRouter();
+	const { syncUnreadTotal } = useUnread();
 
 	const [isDialogOpen, setDialogOpen] = useState(false);
 
@@ -74,6 +76,10 @@ export default function ConversationsClient({
 
 	const [q, setQ] = useState("");
 	const [tab, setTab] = useState("All");
+
+	useEffect(() => {
+		syncUnreadTotal(unreadTotal);
+	}, [syncUnreadTotal, unreadTotal]);
 
 	// --- NEW: track which rooms we've joined so we don't spam the server ---
 	const joinedRef = useRef(new Set());
