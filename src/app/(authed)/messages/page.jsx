@@ -113,8 +113,8 @@ export default async function MessagesPage() {
 					</Link>
 				</div>
 				<Card>
-					<CardContent className="pt-6 max-w-[700px]">
-						<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+					<CardContent className="pt-6 w-full">
+						<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
 							{discoverUsers.length ? (
 								discoverUsers.map((u) => {
 									const canFollow =

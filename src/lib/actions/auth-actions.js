@@ -60,6 +60,7 @@ export async function register(_prev, formData) {
 			data: {
 				email,
 				name,
+				image: dicebearAvatar(email),
 				role: "USER",
 				Credential: { create: { passwordHash } },
 			},
