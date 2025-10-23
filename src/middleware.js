@@ -1,18 +1,35 @@
 // middleware.js (or middleware.ts)
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 
-const protectedRoutes = ["/discover", "/home", "/messages", "/user", "/post","/search"];
+const protectedRoutes = [
+	"/discover",
+	"/home",
+	"/messages",
+	"/user",
+	"/post",
+	"/search",
+];
+
+const sessionCookieNames = [
+	"__Secure-authjs.session-token",
+	"authjs.session-token",
+	"__Secure-next-auth.session-token",
+	"next-auth.session-token",
+];
+
+function hasSessionCookie(request) {
+	return sessionCookieNames.some((name) => request.cookies.get(name));
+}
 
 export default async function middleware(request) {
-	const session = await auth();
 	const { pathname } = request.nextUrl;
+	const isAuthed = hasSessionCookie(request);
 
 	// Signed-in users hitting "/" go to /home
-	if (pathname === "/" && session?.user) {
+	if (pathname === "/" && isAuthed) {
 		return NextResponse.redirect(new URL("/home", request.url));
 	}
-	if (pathname === "/register" && session?.user) {
+	if (pathname === "/register" && isAuthed) {
 		return NextResponse.redirect(new URL("/home", request.url));
 	}
 
@@ -20,7 +37,7 @@ export default async function middleware(request) {
 	const isProtectedRoute = protectedRoutes.some((route) =>
 		pathname.startsWith(route)
 	);
-	if (isProtectedRoute && !session?.user) {
+	if (isProtectedRoute && !isAuthed) {
 		return NextResponse.redirect(new URL("/", request.url));
 	}
 
