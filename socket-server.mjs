@@ -3,7 +3,7 @@ import { Server } from "socket.io";
 import { jwtVerify } from "jose";
 import prisma from "./src/lib/prisma.js";
 
-const PORT = Number(process.env.SOCKET_PORT || 4001);
+const PORT = Number(process.env.PORT || process.env.SOCKET_PORT || 4001);
 const CLIENT_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 // Use the same secret you use to SIGN your optional socket tokens
