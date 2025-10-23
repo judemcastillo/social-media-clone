@@ -1,6 +1,6 @@
 // prisma/seed.js
 const { PrismaClient } = require("@prisma/client");
-const { faker } = require("@faker-js/faker");
+const { fakerEN: faker } = require("@faker-js/faker");
 const bcrypt = require("bcryptjs");
 
 const prisma = new PrismaClient();
