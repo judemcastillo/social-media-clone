@@ -19,6 +19,18 @@ export const dynamic = "force-dynamic";
 
 export default async function MessagesPage() {
 	const session = await auth();
+	if (session?.user?.role === "GUEST") {
+		return (
+			<Card className="m-6">
+				<CardHeader className="text-center">
+					<CardTitle>Access Denied</CardTitle>
+					<CardDescription>
+						You must be a registered user to access this page.
+					</CardDescription>
+				</CardHeader>
+			</Card>
+		);
+	}
 	const viewerId = session?.user?.id ?? null;
 	const viewerRole = session?.user?.role ?? "USER";
 
@@ -62,11 +74,15 @@ export default async function MessagesPage() {
 											<div>
 												<p className="text-base font-semibold">{room.title}</p>
 												<p className="text-sm text-muted-foreground">
-													{room.memberCount} members · {room.messageCount} messages
+													{room.memberCount} members · {room.messageCount}{" "}
+													messages
 												</p>
 											</div>
 											<div className="flex gap-2">
-												<Link href={`/messages/${room.id}/room`} className="flex-1">
+												<Link
+													href={`/messages/${room.id}/room`}
+													className="flex-1"
+												>
 													<Button
 														variant="secondary"
 														className="w-full text-xs cursor-pointer"

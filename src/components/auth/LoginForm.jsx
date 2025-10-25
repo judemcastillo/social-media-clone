@@ -20,7 +20,7 @@ function SubmitButton() {
 
 export default function LoginForm() {
 	const initialState = { ok: false, errors: {} };
-	const [state, formAction, isPending] = useActionState(
+	const [state, formAction, pending] = useActionState(
 		loginWithCredentials,
 		initialState
 	);
@@ -67,7 +67,9 @@ export default function LoginForm() {
 						) : null}
 					</div>
 
-					<SubmitButton className="pt-6" />
+					<Button type="submit" className="w-full" disabled={pending}>
+						{pending ? "Signing in..." : "Sign in"}
+					</Button>
 				</form>
 				<div className="divider w-full">Or continue with</div>
 				<GuestSignInButton />

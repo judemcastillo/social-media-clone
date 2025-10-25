@@ -4,8 +4,15 @@ import { fetchConversations } from "@/lib/actions/conversation-actions";
 import ConversationsClient from "./ConversationsClient";
 
 import { fetchUsersAction } from "@/lib/actions/discover-actions";
+import { auth } from "@/auth";
 
 export default async function RootLayout({ children }) {
+	const session = await auth();
+	if (session?.user?.role === "GUEST") {
+		return (
+			<div className="h-screen">{children}</div>
+		);
+	}
 	const { conversations } = await fetchConversations();
 	const { users, nextCursor } = await fetchUsersAction();
 	return (

@@ -6,6 +6,18 @@ export const dynamic = "force-dynamic";
 
 export default async function RoomConversationPage({ params }) {
 	const session = await auth();
+	if (session?.user?.role === "GUEST") {
+		return (
+			<Card className="m-6">
+				<CardHeader className="text-center">
+					<CardTitle>Access Denied</CardTitle>
+					<CardDescription>
+						You must be a registered user to access this page.
+					</CardDescription>
+				</CardHeader>
+			</Card>
+		);
+	}
 	if (!session?.user?.id) return null;
 
 	const { id } = params;
