@@ -1,4 +1,4 @@
-# Social Media Clone
+# Yap Space
 
 A full-stack social platform built with the Next.js App Router, showcasing real-time chat, social graph features, and modern UX patterns.
 
